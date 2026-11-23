@@ -1,5 +1,16 @@
 # Smart Air Node — Protótipo
 
+![Alt text](<Screenshot 2026-11-23 174837.png>)
+
+![Alt text](<Screenshot 2026-11-23 174856.png>)
+
+![Alt text](<Screenshot 2026-11-23 174922.png>)
+
+![Alt text](<Screenshot 2026-11-23 174955.png>)
+
+![Alt text](<Screenshot 2026-11-23 175018.png>)
+
+
 Arquivos executáveis e documentação do **Produto 2** da Smart Air: dispositivo a bateria que liga o ar-condicionado quando há pessoas na sala e desliga após **10 min** sem presença.
 
 O plano de implementação (arquitetura, custos, cronograma, ROI) está em [`../PLANO_IMPLEMENTACAO.md`](../PLANO_IMPLEMENTACAO.md).
