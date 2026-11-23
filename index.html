@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Air Protótipo</title>
+<style>
+  :root{--bg:#0d1512;--panel:#111c18;--line:#24352f;--text:#e6efe9;--muted:#93a8a0;--accent:#7cc4ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 "Segoe UI",system-ui,Roboto,sans-serif}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 16px 60px}
+  h1{font-size:34px;margin:0}h1 b{color:#3fae6f}h1 i{color:#5b9bd5;font-style:normal}
+  .lead{color:#cfdcd6;font-size:17px;max-width:760px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:28px}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;transition:border-color .15s,transform .15s}
+  a.card:hover{border-color:#3fae6f;transform:translateY(-2px)}
+  .card h2{margin:6px 0 6px;font-size:19px}.card p{margin:0;color:var(--muted);font-size:14px}
+  .tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#3fae6f}
+  .card img{width:100%;border-radius:10px;margin-top:12px;background:#f8f8f8}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:28px}
+  .facts div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .facts b{display:block;font-size:20px}.facts span{color:var(--muted);font-size:13px}
+  ul{color:#cfdcd6}code{background:#16241f;padding:1px 5px;border-radius:4px}
+  .note{color:var(--muted);font-size:13px;margin-top:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><b>Smart</b> <i>air</i> · Node</h1>
+  <p class="lead">Produto 2: um dispositivo a bateria que liga o ar-condicionado quando há gente na sala e desliga depois de 10 minutos sem ninguém. ESP32-C3, PIR, ultrassom, sensor de luz e emissor infravermelho, fixado com fita VHB ou bucha.</p>
+
+  <div class="facts">
+    <div><b>≈ R$ 175</b><span>material do protótipo (com caixa 3D)</span></div>
+    <div><b>≈ R$ 125</b><span>por unidade em lote de 1000</span></div>
+    <div><b>14–21 meses</b><span>autonomia estimada (1 × 18650)</span></div>
+    <div><b>2–4 meses</b><span>payback por sala</span></div>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="demo-3d.html">
+      <span class="tag">Demonstração 3D</span>
+      <h2>Componentes e conexões</h2>
+      <p>Modelo 3D interativo: clique em cada peça para ver função, especificação, pinos, consumo e custo. Vista explodida, raio-X, fios por sinal e o dispositivo instalado na parede.</p>
+    </a>
+    <a class="card" href="simulacao.html">
+      <span class="tag">Simulação</span>
+      <h2>Comportamento na sala</h2>
+      <p>Sala de aula em 3D com pessoas, luz, temperatura e o AC. Cenários de um dia letivo, pessoa parada, falsos positivos e saída com luz apagada; economia, conforto e bateria calculados ao vivo.</p>
+    </a>
+    <a class="card" href="demo-3d.html?caixa=3d">
+      <span class="tag">Caixa impressa em 3D</span>
+      <h2>Caixa preta com travas</h2>
+      <p>Base + tampa com 4 travas de encaixe, suporte de parede com pinos-cogumelo. STLs prontos e modelo OpenSCAD paramétrico em <code>caixa-3d/</code>.</p>
+      <img src="caixa-3d/preview_explodido.png" alt="Vista explodida da caixa impressa em 3D: tampa, base e suporte de parede">
+    </a>
+  </div>
+
+  <h2 style="margin-top:36px;font-size:20px">Arquivos</h2>
+  <ul>
+    <li><code>demo-3d.html</code>, <code>simulacao.html</code>: abrir com um servidor local (veja <code>README.md</code>).</li>
+    <li><code>caixa-3d/</code>: <code>base.stl</code>, <code>tampa.stl</code>, <code>suporte.stl</code>, <code>smartair_caixa.scad</code>.</li>
+    <li><code>firmware/smartair_node/</code>: firmware de referência para ESP32-C3 (Arduino).</li>
+    <li><code>docs/</code>: documentação técnica e guia de impressão/montagem.</li>
+    <li><code>../PLANO_IMPLEMENTACAO.md</code>: plano de implementação, custos e cronograma.</li>
+  </ul>
+  <p class="note">As páginas carregam o Three.js da CDN jsDelivr, então precisam de internet.</p>
+</div>
+</body>
+</html>

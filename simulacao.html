@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Air Simulação</title>
+<style>
+  :root{--bg:#0d1512;--panel:#111c18;--panel2:#16241f;--line:#24352f;--text:#e6efe9;--muted:#93a8a0;--accent:#7cc4ff;
+    --vazio:#6b7280;--conf:#f59e0b;--ocup:#22c55e;--cont:#3b82f6;--ac:#38bdf8;--base:#ef4444}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13.5px/1.45 "Segoe UI",system-ui,Roboto,sans-serif}
+  body{display:grid;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
+  .topbar{display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line)}
+  .brand{font-weight:700;font-size:18px}.brand b{color:#3fae6f}.brand i{color:#5b9bd5;font-style:normal}
+  .topbar .sub{color:var(--muted);font-size:13px}
+  .topbar a{color:var(--accent);text-decoration:none;font-size:13px;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+  .topbar a:first-of-type{margin-left:auto}
+  main{display:grid;grid-template-columns:1fr 390px;min-height:0}
+  .left{display:grid;grid-template-rows:1fr 230px;min-height:0;min-width:0}
+  #view{position:relative;min-height:0;overflow:hidden}
+  #view canvas{display:block}
+  .hud{position:absolute;left:12px;top:12px;display:flex;gap:8px;flex-wrap:wrap;z-index:2}
+  .hud .card{background:#0d1512dd;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  .hud .clock{font:700 26px/1 Consolas,monospace}
+  .hud .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  .state{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:700;font-size:13px;color:#06130c}
+  .cams{position:absolute;right:12px;top:12px;display:flex;gap:6px;z-index:2}
+  .legend3d{position:absolute;left:12px;bottom:10px;display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);z-index:2;background:#0d1512bb;padding:5px 10px;border-radius:8px}
+  .legend3d span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+  .tl{border-top:1px solid var(--line);position:relative;min-width:0}
+  #tl{width:100%;height:100%;display:block}
+  aside{border-left:1px solid var(--line);background:var(--panel);overflow:auto;padding:12px 14px}
+  h3{margin:14px 0 6px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  h3:first-child{margin-top:0}
+  select,button,input[type=number]{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px}
+  select{width:100%}
+  button{cursor:pointer}button:hover{border-color:#3fae6f}button.on{background:#1f5e3b;border-color:#3fae6f}
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:5px 0}
+  .row.sp{justify-content:space-between}
+  .row label{flex:1;color:#cfdcd6}
+  input[type=range]{accent-color:#3fae6f;width:140px}
+  .desc{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+  .kpi b{display:block;font-size:16px}.kpi span{color:var(--muted);font-size:11.5px}
+  .kpi.big{grid-column:span 2;display:flex;align-items:center;justify-content:space-between}
+  .kpi.big b{font-size:24px;color:#4ade80}
+  .sens{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;font-size:12.5px;align-items:center}
+  .dot{width:10px;height:10px;border-radius:50%;background:#2a3a34}
+  .dot.on{background:#ffd400;box-shadow:0 0 8px #ffd400}
+  .dot.us{background:#22d3ee;box-shadow:0 0 8px #22d3ee}
+  #log{height:220px;overflow:auto;font:12px/1.5 Consolas,monospace;background:#0b1210;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  #log div{border-bottom:1px dashed #1b2a25;padding:2px 0}
+  #log .t{color:var(--muted)}
+  .countdown{font:700 30px/1 Consolas,monospace;color:#93c5fd}
+  details summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px}
+  @media (max-width:1000px){
+    body{height:auto;overflow:auto}
+    main{grid-template-columns:1fr}
+    .left{grid-template-rows:60vh 220px}
+    aside{border-left:0;border-top:1px solid var(--line)}
+    .topbar .sub{display:none}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><b>Smart</b> <i>air</i> · Simulação</div>
+  <div class="sub">Como o Smart Air Node se comporta numa sala de aula real</div>
+  <a href="index.html">Início</a>
+  <a href="demo-3d.html" id="lnkDemo">← Componentes 3D</a>
+</div>
+<main>
+  <section class="left">
+    <div id="view">
+      <div class="hud">
+        <div class="card"><div class="lbl">Hora simulada</div><div class="clock" id="hClock">--:--</div></div>
+        <div class="card"><div class="lbl">Estado do Node</div><span class="state" id="hState">VAZIO</span><div class="countdown" id="hCount" style="display:none;margin-top:4px">10:00</div></div>
+        <div class="card"><div class="lbl">Ar-condicionado</div><div id="hAc" style="font-weight:700;font-size:15px">DESLIGADO</div><div class="lbl" id="hTemp" style="margin-top:2px">--</div></div>
+        <div class="card"><div class="lbl">Pessoas</div><div class="clock" id="hPeople">0</div></div>
+      </div>
+      <div class="cams">
+        <button data-cam="geral" class="on">Geral</button><button data-cam="planta">Planta</button><button data-cam="frente">Do quadro</button><button data-cam="node">Dispositivo</button>
+      </div>
+      <div class="legend3d">
+        <span style="--c:#ffd400">cone do PIR</span><span style="--c:#22d3ee">feixe do ultrassom</span><span style="--c:#d946ef">sinal IR</span><span style="--c:#60a5fa">ar frio</span>
+      </div>
+    </div>
+    <div class="tl"><canvas id="tl"></canvas></div>
+  </section>
+  <aside>
+    <h3>Cenário</h3>
+    <select id="scn"></select>
+    <p class="desc" id="scnDesc"></p>
+    <div class="row" style="margin-top:8px">
+      <button id="bPlay" class="on">⏸ Pausar</button>
+      <button id="bReset">↺ Reiniciar</button>
+    </div>
+    <div class="row" id="speeds"></div>
+
+    <h3>Resultado no período</h3>
+    <div class="kpis">
+      <div class="kpi big"><div><span>Economia de energia vs. operação manual</span><b id="kSave">0 %</b></div><div style="text-align:right"><span id="kBaseLbl">manual</span><br><span id="kKwh">0 / 0 kWh</span></div></div>
+      <div class="kpi"><b id="kReais">R$ 0,00</b><span>economizados no período</span></div>
+      <div class="kpi"><b id="kAcH">0 h 00</b><span>AC ligado (Smart Air)</span></div>
+      <div class="kpi"><b id="kDisc">0 min</b><span>pessoas com AC desligado</span></div>
+      <div class="kpi"><b id="kFalse">0</b><span>falsos positivos evitados</span></div>
+      <div class="kpi"><b id="kIr">0</b><span>comandos IR (reenvios)</span></div>
+      <div class="kpi"><b id="kBat">—</b><span>autonomia projetada (18650)</span></div>
+    </div>
+
+    <h3>Sensores agora</h3>
+    <div class="sens">
+      <span class="dot" id="sPir"></span><span>PIR (movimento)</span><span id="sPirN">0 disparos</span>
+      <span class="dot" id="sUs"></span><span>Ultrassom (zona central)</span><span id="sUsV">—</span>
+      <span class="dot" id="sLux"></span><span>Luz ambiente</span><span id="sLuxV">—</span>
+      <span class="dot"></span><span>Temperatura (AHT20)</span><span id="sTmp">—</span>
+      <span class="dot"></span><span>Bateria consumida</span><span id="sBat">0 mAh</span>
+    </div>
+
+    <h3>Controle manual</h3>
+    <div class="row">
+      <button data-act="aluno">+ Aluno</button>
+      <button data-act="leitor">+ Leitor no cone</button>
+      <button data-act="leitorFora">+ Leitor fora do cone</button>
+      <button data-act="sai">− Uma pessoa sai</button>
+      <button data-act="todos">Todos saem</button>
+      <button data-act="passante">Passante na porta</button>
+      <button data-act="luz">💡 Luz liga/desliga</button>
+    </div>
+
+    <h3>Configuração do dispositivo</h3>
+    <div class="row sp"><label>Contagem para desligar</label><input type="range" id="cCount" min="3" max="30" step="1" value="10"><b id="vCount">10 min</b></div>
+    <div class="row sp"><label>Contagem com luz apagada</label><input type="range" id="cFast" min="1" max="10" step="1" value="2"><b id="vFast">2 min</b></div>
+    <div class="row sp"><label>Sensores ativos</label>
+      <button id="tPir" class="on">PIR</button><button id="tUs" class="on">Ultrassom</button><button id="tLux" class="on">Luz</button></div>
+    <div class="row sp"><label>Verificação pelo AHT20</label><button id="tVer" class="on">Ligada</button></div>
+    <div class="row sp"><label>Taxa de acerto do IR</label><input type="range" id="cIr" min="70" max="100" step="1" value="95"><b id="vIr">95 %</b></div>
+    <div class="row sp"><label>Ar-condicionado</label>
+      <select id="cAc" style="width:170px"><option value="1.1">12 000 BTU (1,1 kW)</option><option value="1.6">18 000 BTU (1,6 kW)</option><option value="2.2">24 000 BTU (2,2 kW)</option><option value="3.3">36 000 BTU (3,3 kW)</option></select></div>
+    <div class="row sp"><label>Tarifa (R$/kWh)</label><input type="number" id="cTar" value="0.95" step="0.05" min="0.3" max="2" style="width:80px"></div>
+    <div class="row sp"><label>Hardware</label><select id="cHw" style="width:170px"><option value="17">Produção (sono 17 µA)</option><option value="150">Protótipo (sono 150 µA)</option></select></div>
+    <div class="row sp"><label>Rádio</label><select id="cRadio" style="width:170px"><option value="espnow">ESP-NOW (gateway)</option><option value="wifi">Wi-Fi direto</option><option value="none">Sem rede (offline)</option></select></div>
+    <div class="row sp"><label>Caixa do dispositivo</label>
+      <button id="cCaseProd" class="on">Produção (branca)</button><button id="cCasePrint">Impressão 3D (preta)</button></div>
+
+    <h3>Registro de eventos</h3>
+    <div id="log"></div>
+    <details><summary>Como a decisão funciona</summary>
+      <p class="desc"><b>VAZIO → CONFIRMANDO</b>: o PIR acorda o ESP32. Em até 60 s ele precisa de uma confirmação: 2º disparo do PIR (≥ 5 s depois), ultrassom vendo alguém na zona central ou a luz acendendo. Sem isso, volta a dormir (falso positivo evitado).<br>
+      <b>OCUPADO</b>: AC ligado. PIR (máx. 1 despertar/min) e ultrassom a cada 2 min mantêm a presença.<br>
+      <b>CONTAGEM</b>: 90 s sem nenhuma evidência (60 s de máscara do PIR + 30 s). Ultrassom a cada 30 s; qualquer detecção cancela. Ao final (10 min; 2 min se a luz foi apagada; 3 min se foi uma visita curta) → IR DESLIGAR.<br>
+      Fora do horário de funcionamento (22:30–06:30) o AC não é ligado.</p>
+    </details>
+  </aside>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* =====================================================================
+   1. CONFIGURAÇÃO E CONSTANTES (mesmos valores do firmware e do plano)
+   ===================================================================== */
+const CFG = {
+  countdownMin: 10, fastOffMin: 2, shortVisitMin: 3, shortVisitThresholdS: 180,
+  confirmWinS: 60, pirRefractoryS: 5, quietToCountS: 90, usOccS: 120, usCountS: 30, usConfirmAtS: 20,
+  luxIdleS: 300, luxCountS: 60, luxJump: 150, pirMaskS: 60,
+  hours: [6.5, 22.5], setpoint: 23, acKW: 1.1, tarifa: 0.95, irSuccess: 0.95, verify: true, verifyAfterS: 360,
+  sleepUA: 17, radio: 'espnow',
+  sensors: { pir: true, us: true, lux: true },
+  caseMode: new URLSearchParams(location.search).get('caixa') === '3d' ? 'print' : 'prod',
+};
+// custo de energia por evento (µAh) — ver docs/DOCUMENTACAO_TECNICA.md §4
+const COST = { wake: 0.28, us: 2.7, lux: 1.04, ir: 12.5, espnow: 1.4, wifi: 25, aht: 0.5 };
+const BAT_USABLE_MAH = 3000 * 0.85, SELF_DISCH_MAH_DAY = 2.0;
+
+/* ---------- geometria da sala (m) ---------- */
+const ROOM = { w: 8, d: 10, h: 3 };                         // x ∈ [-4,4], z ∈ [-5,5]
+const DEV = new THREE.Vector3(0, 2.35, 4.95);               // Smart Air Node na parede de trás
+const AC = new THREE.Vector3(1.6, 2.45, -4.82);             // evaporadora na parede da frente
+const US_TARGET = new THREE.Vector3(0, 0.75, 1.2);           // mira do ultrassom (fileiras centrais)
+const US_AXIS = US_TARGET.clone().sub(DEV).normalize();
+const US_BASELINE = US_TARGET.distanceTo(DEV), US_HALF = THREE.MathUtils.degToRad(15), US_RANGE = 4.5;
+const PIR_HALF = THREE.MathUtils.degToRad(50), PIR_RANGE = 12;
+const DOOR_IN = new THREE.Vector3(3.55, 0, -3.6), DOOR_OUT = new THREE.Vector3(4.7, 0, -3.6);
+const COLS = [-3, -1.5, 0, 1.5, 3], ROWS = [-2.4, -1.2, 0, 1.2, 2.4, 3.6];
+const SEATS = []; ROWS.forEach((z, r) => COLS.forEach((x, c) => SEATS.push({ x, z: z + 0.55, desk: z, c, r })));
+const CONE_SEATS = SEATS.filter(s => s.c === 2 && (s.r === 3 || s.r === 4));
+
+/* =====================================================================
+   2. UTILITÁRIOS
+   ===================================================================== */
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let rnd = mulberry32(42);
+const expRand = mean => -Math.log(1 - rnd()) * mean;
+const hm = s => { const [h, m] = s.split(':').map(Number); return h * 3600 + m * 60; };
+const fmt = (t, sec = false) => { t = Math.max(0, Math.floor(t)); const h = Math.floor(t / 3600) % 24, m = Math.floor(t / 60) % 60, s = t % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + (sec ? ':' + String(s).padStart(2, '0') : ''); };
+const mmss = s => { s = Math.max(0, Math.ceil(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+const inHours = t => { const h = (t / 3600) % 24; return h >= CFG.hours[0] && h < CFG.hours[1]; };
+
+/* =====================================================================
+   3. CENÁRIOS
+   ===================================================================== */
+const SCENARIOS = {
+  dia: {
+    n: 'Dia letivo típico (06:00–23:00)', start: '06:00', end: '23:00', speed: 300,
+    baseline: { type: 'fixed', from: '07:00', to: '22:30', label: 'manual 07:00–22:30 (método Smart Place)' },
+    d: 'Quatro aulas, intervalos, luz esquecida acesa, um aluno estudando parado após a aula, alguém passando na porta e a faxina fora do horário. Referência: AC ligado das 07:00 às 22:30, como no estudo do Smart Place na UFRN.',
+    ev: [
+      { at: '06:52', type: 'arrive', kind: 'prof', n: 1, spread: 60 },
+      { at: '06:55', type: 'arrive', kind: 'aluno', n: 28, spread: 900 },
+      { at: '08:40', type: 'leave', who: 'all', spread: 300, lightsOff: false },
+      { at: '08:48', type: 'arrive', kind: 'prof', n: 1, spread: 60 },
+      { at: '08:50', type: 'arrive', kind: 'aluno', n: 24, spread: 420 },
+      { at: '10:30', type: 'leave', who: 'all', spread: 300, lightsOff: false },
+      { at: '12:58', type: 'arrive', kind: 'prof', n: 1, spread: 60 },
+      { at: '13:00', type: 'arrive', kind: 'aluno', n: 18, spread: 600 },
+      { at: '14:00', type: 'arrive', kind: 'leitor', n: 1, spread: 10, cone: true },
+      { at: '14:40', type: 'leave', who: 'aluno', spread: 300, lightsOff: false },
+      { at: '14:41', type: 'leave', who: 'prof', spread: 60, lightsOff: false },
+      { at: '16:10', type: 'leave', who: 'leitor', spread: 10, lightsOff: true },
+      { at: '16:40', type: 'visit', kind: 'passante' },
+      { at: '18:48', type: 'arrive', kind: 'prof', n: 1, spread: 60 },
+      { at: '18:50', type: 'arrive', kind: 'aluno', n: 25, spread: 600 },
+      { at: '22:10', type: 'leave', who: 'all', spread: 300, lightsOff: true },
+      { at: '22:40', type: 'visit', kind: 'faxina', dur: 420 },
+    ]
+  },
+  leitor: {
+    n: 'Pessoa parada estudando (teste do ultrassom)', start: '13:50', end: '16:30', speed: 60,
+    baseline: { type: 'manual', forgetMin: 0, label: 'manual (desliga ao sair)' },
+    d: 'Um aluno entra às 14:00 e estuda quase imóvel na zona central até 16:00. O PIR quase não o vê; o ultrassom mantém o AC ligado. Desligue o ultrassom em "Sensores ativos" para ver o AC desligar com a pessoa na sala.',
+    ev: [
+      { at: '14:00', type: 'arrive', kind: 'leitor', n: 1, spread: 5, cone: true },
+      { at: '16:00', type: 'leave', who: 'all', spread: 10, lightsOff: true },
+    ]
+  },
+  falso: {
+    n: 'Falsos positivos: porta, visita rápida e faxina', start: '22:15', end: '23:30', speed: 60,
+    baseline: { type: 'manual', forgetMin: 0, label: 'manual' },
+    d: 'Passantes na porta disparam o PIR uma vez (rejeitados). Às 22:20 alguém entra por 40 s para buscar algo (visita curta → desliga em 3 min). Às 23:00 a faxina trabalha 8 min com a luz acesa — fora do horário, o AC não liga.',
+    ev: [
+      { at: '22:18', type: 'visit', kind: 'passante' },
+      { at: '22:20', type: 'visit', kind: 'rapido', dur: 40 },
+      { at: '22:36', type: 'visit', kind: 'passante' },
+      { at: '22:47', type: 'visit', kind: 'passante' },
+      { at: '23:00', type: 'visit', kind: 'faxina', dur: 480 },
+    ]
+  },
+  saida: {
+    n: 'Fim de aula com luz apagada', start: '09:30', end: '11:30', speed: 60,
+    baseline: { type: 'manual', forgetMin: 999, label: 'manual (AC esquecido ligado)' },
+    d: 'A turma já está na sala com o AC ligado. Às 10:00 todos saem e apagam a luz: a contagem cai para 2 min. Na referência, o AC fica esquecido ligado — situação comum que gera o desperdício.',
+    pre: { kind: 'aluno', n: 26, prof: true },
+    ev: [
+      { at: '10:00', type: 'leave', who: 'all', spread: 240, lightsOff: true },
+      { at: '10:45', type: 'visit', kind: 'passante' },
+    ]
+  },
+  livre: {
+    n: 'Modo livre (controle manual)', start: '08:00', end: '23:59', speed: 10,
+    baseline: { type: 'manual', forgetMin: 30, label: 'manual (esquece 30 min ligado)' },
+    d: 'Sala vazia às 08:00. Use os botões de controle manual para colocar e tirar pessoas, acender ou apagar a luz e testar a lógica.',
+    ev: []
+  }
+};
+
+/* =====================================================================
+   4. AMBIENTE (pessoas, luz, temperatura, sensores físicos)
+   ===================================================================== */
+let env, node, rec, log = [];
+const KIND = {
+  aluno: { micro: 45, color: 0x60a5fa, h: 1.65 },
+  prof: { micro: 12, color: 0xf97316, h: 1.75 },
+  leitor: { micro: 1500, color: 0xa78bfa, h: 1.7 },
+  faxina: { micro: 5, color: 0xfacc15, h: 1.6 },
+  passante: { micro: 5, color: 0x94a3b8, h: 1.72 },
+  rapido: { micro: 5, color: 0x34d399, h: 1.7 },
+};
+let pid = 0;
+function freeSeat(pref) {
+  const used = new Set(env.people.filter(p => p.seat).map(p => p.seat));
+  let pool = (pref === 'cone' ? CONE_SEATS : pref === 'fora' ? SEATS.filter(s => s.c !== 2 && s.r >= 2) : SEATS).filter(s => !used.has(s));
+  if (!pool.length) pool = SEATS.filter(s => !used.has(s));
+  return pool[Math.floor(rnd() * pool.length)];
+}
+function spawn(kind, opts = {}) {
+  const k = KIND[kind];
+  const p = { id: ++pid, kind, micro: k.micro, pos: DOOR_OUT.clone(), path: [], state: 'walk', seat: null, nextMicro: 0, moving: 0, leaveAt: Infinity, inRoom: false, walkPhase: rnd() * 6 };
+  if (kind === 'aluno' || kind === 'leitor') {
+    p.seat = opts.seated ? freeSeat(opts.cone ? 'cone' : opts.fora ? 'fora' : null) : freeSeat(opts.cone ? 'cone' : opts.fora ? 'fora' : null);
+    p.path = [DOOR_IN.clone(), new THREE.Vector3(DOOR_IN.x - 0.4, 0, p.seat.z - 0.0).setX(p.seat.x + 0.75 * Math.sign(3.5 - p.seat.x || 1)), new THREE.Vector3(p.seat.x, 0, p.seat.z)];
+    p.path[1].x = Math.min(3.6, p.seat.x + 0.75);
+  } else if (kind === 'prof') {
+    p.path = [DOOR_IN.clone(), new THREE.Vector3(-1, 0, -3.9)];
+  } else if (kind === 'passante') {
+    p.path = [DOOR_IN.clone().add(new THREE.Vector3(-0.6, 0, 0)), DOOR_OUT.clone()]; p.leaveAfterPath = true;
+  } else { // faxina / rapido
+    p.path = [DOOR_IN.clone(), new THREE.Vector3(1, 0, -1)]; p.wander = true; p.leaveAt = env.t + (opts.dur || 60);
+  }
+  if (opts.seated && p.seat) { p.pos.set(p.seat.x, 0, p.seat.z); p.path = []; p.state = 'seated'; p.inRoom = true; p.nextMicro = env.t + expRand(p.micro); }
+  if (opts.seated && kind === 'prof') { p.pos.set(-1, 0, -3.9); p.path = []; p.state = 'stand'; p.inRoom = true; }
+  env.people.push(p);
+  return p;
+}
+function leave(p, lightsOff) {
+  if (p.state === 'leaving' || p.state === 'gone') return;
+  p.state = 'leaving'; p.lightsOff = lightsOff;
+  const pts = [];
+  if (p.seat) pts.push(new THREE.Vector3(Math.min(3.6, p.seat.x + 0.75), 0, p.seat.z));
+  pts.push(DOOR_IN.clone(), DOOR_OUT.clone());
+  p.path = pts; p.seat = null;
+}
+function roomCount() { return env.people.filter(p => p.inRoom && p.state !== 'gone').length; }
+function occupants() { return env.people.filter(p => p.inRoom && p.state !== 'gone' && p.kind !== 'passante').length; }
+
+function daylight(t) { const h = (t / 3600) % 24; return h < 6 || h > 18.6 ? 0 : Math.max(0, Math.sin(Math.PI * (h - 6) / 12.6)) * 240; }
+function outsideTemp(t) { const h = (t / 3600) % 24; return 28.5 + 3.2 * Math.sin(Math.PI * (h - 8) / 12); }
+
+function newEnv(sc) {
+  const t0 = hm(sc.start);
+  env = { t: t0, t0, t1: hm(sc.end), people: [], lights: false, acOn: false, temp: outsideTemp(t0) - 1,
+    pirHighUntil: -1, lastEdge: -1e9, pirEdgesTotal: 0, events: sc.ev.map(e => ({ ...e, t: hm(e.at) })).sort((a, b) => a.t - b.t),
+    eIdx: 0, kwhSmart: 0, kwhBase: 0, baseOn: false, baseOffAt: Infinity, discomfortS: 0, acOnS: 0,
+    lastUsVis: { t: -1e9, present: false }, motionMarks: [], pending: [] };
+  if (sc.pre) {
+    for (let i = 0; i < sc.pre.n; i++) spawn(sc.pre.kind, { seated: true });
+    if (sc.pre.prof) spawn('prof', { seated: true });
+    env.lights = true; env.acOn = true; env.temp = CFG.setpoint + 0.5; env.baseOn = true;
+  }
+}
+
+/* ---------- passo físico de 1 s ---------- */
+function envStep() {
+  const t = env.t;
+  // eventos do cenário
+  while (env.eIdx < env.events.length && env.events[env.eIdx].t <= t) {
+    const e = env.events[env.eIdx++];
+    if (e.type === 'arrive') for (let i = 0; i < e.n; i++) env.pending.push({ t: t + rnd() * e.spread, fn: () => spawn(e.kind, { cone: e.cone }) });
+    if (e.type === 'leave') {
+      const who = env.people.filter(p => p.state !== 'leaving' && p.state !== 'gone' && p.kind !== 'passante' && (e.who === 'all' || p.kind === e.who));
+      who.forEach(p => env.pending.push({ t: t + rnd() * e.spread, fn: () => leave(p, e.lightsOff) }));
+    }
+    if (e.type === 'visit') spawn(e.kind, { dur: e.dur });
+  }
+  env.pending = env.pending.filter(a => { if (a.t <= t) { a.fn(); return false; } return true; });
+
+  // pessoas
+  let motionDetections = [];
+  for (const p of env.people) {
+    if (p.state === 'gone') continue;
+    p.moving = Math.max(0, p.moving - 1);
+    if (p.path.length) {
+      const target = p.path[0]; const dir = target.clone().sub(p.pos); const dist = dir.length();
+      const v = 1.2;
+      if (dist <= v) { p.pos.copy(target); p.path.shift(); } else p.pos.addScaledVector(dir.normalize(), v);
+      p.moving = 1; p.walking = true;
+      if (!p.inRoom && p.pos.x < 4) {
+        p.inRoom = true;
+        if (!env.lights && p.kind !== 'passante' && daylight(t) < 400) { env.lights = true; logEv('💡 Luz da sala acesa por quem entrou', '#fde047'); }
+      }
+      if (!p.path.length) {
+        if (p.state === 'leaving' || p.leaveAfterPath) {
+          p.state = 'gone'; p.inRoom = false;
+          if (p.lightsOff && occupants() === 0 && env.lights) { env.lights = false; logEv('💡 Último a sair apagou a luz', '#fde047'); }
+        } else if (p.seat) { p.state = 'seated'; p.nextMicro = t + expRand(p.micro); }
+        else { p.state = 'stand'; p.nextMicro = t + expRand(p.micro); }
+      }
+    } else { p.walking = false; }
+    if (p.pos.x >= 4 && p.state !== 'gone' && !p.path.length && (p.state === 'leaving' || p.leaveAfterPath)) { p.state = 'gone'; p.inRoom = false; }
+    // professor anda pela frente, faxina e visita rápida andam pela sala
+    if (!p.path.length && p.state === 'stand') {
+      if (t >= p.nextMicro) {
+        if (p.kind === 'prof') p.path = [new THREE.Vector3(-3 + rnd() * 5, 0, -4.1 + rnd() * 0.8)];
+        else if (p.wander) p.path = [new THREE.Vector3(-3.4 + rnd() * 6.8, 0, -4 + rnd() * 8.5)];
+        p.nextMicro = t + 5 + expRand(p.micro * (p.kind === 'prof' ? 3 : 1));
+      }
+      if (p.wander && t >= p.leaveAt) { p.wander = false; leave(p, p.kind === 'faxina'); }
+    }
+    if (p.state === 'seated' && t >= p.nextMicro) { p.moving = 2; p.nextMicro = t + expRand(p.micro); }
+    if (p.inRoom && p.moving > 0) motionDetections.push(p);
+  }
+  if (env.people.length > 200) env.people = env.people.filter(p => p.state !== 'gone');
+
+  // PIR físico: o cone vê movimento? (walking 95 %/s, micro-movimento 60 %)
+  let detect = false;
+  for (const p of motionDetections) {
+    const dx = p.pos.x - DEV.x, dz = DEV.z - p.pos.z; const horiz = Math.hypot(dx, dz);
+    if (horiz < 0.8 || horiz > PIR_RANGE || Math.abs(Math.atan2(dx, dz)) > PIR_HALF) continue;
+    const prob = (p.walking ? 0.95 : 0.6) * (horiz > 8 ? 0.7 : 1);
+    if (rnd() < prob) { detect = true; env.motionMarks.push({ id: p.id, t }); }
+  }
+  env.pirEdge = false;
+  if (detect && CFG.sensors.pir) {
+    env.pirHighUntil = t + 2;
+    if (t - env.lastEdge >= CFG.pirRefractoryS) { env.pirEdge = true; env.lastEdge = t; env.pirEdgesTotal++; rec.pir.push(t); }
+  }
+  env.pirHigh = CFG.sensors.pir && t < env.pirHighUntil;
+
+  // temperatura da sala (°C/min → /s)
+  const n = roomCount();
+  let dT = 0.02 * (outsideTemp(t) - env.temp) + 0.003 * n;
+  if (env.acOn) dT -= env.temp > CFG.setpoint ? 0.45 : Math.max(0, dT);
+  env.temp += dT / 60;
+
+  // energia, conforto e linha de base
+  const sc = SCENARIOS[scKey];
+  if (sc.baseline.type === 'fixed') env.baseOn = t >= hm(sc.baseline.from) && t < hm(sc.baseline.to);
+  else {
+    const occ = occupants();
+    if (occ > 0) { env.baseOn = true; env.baseOffAt = Infinity; }
+    else if (env.baseOn && env.baseOffAt === Infinity) env.baseOffAt = t + sc.baseline.forgetMin * 60;
+    if (occ === 0 && t >= env.baseOffAt) env.baseOn = false;
+  }
+  if (env.acOn) { env.kwhSmart += CFG.acKW / 3600; env.acOnS++; }
+  if (env.baseOn) env.kwhBase += CFG.acKW / 3600;
+  if (occupants() > 0 && !env.acOn && inHours(t)) env.discomfortS++;
+}
+
+/* --- sensores lidos pelo Node (com custo de energia) --- */
+function usBurst() {
+  node.uAh += COST.us; node.usCount++;
+  let best = US_BASELINE + (rnd() - 0.5) * 0.01, who = null;
+  for (const p of env.people) {
+    if (!p.inRoom || p.state === 'gone') continue;
+    const chest = new THREE.Vector3(p.pos.x, p.state === 'seated' ? 1.1 : 1.35, p.pos.z);
+    const v = chest.clone().sub(DEV); const d = v.length();
+    if (d > US_RANGE) continue;
+    if (v.normalize().angleTo(US_AXIS) < US_HALF && d < best) { best = d + (rnd() - 0.5) * 0.02; who = p; }
+  }
+  const present = CFG.sensors.us && best < US_BASELINE - 0.15;
+  env.lastUsVis = { t: env.t, present, dist: best };
+  rec.us.push({ t: env.t, present });
+  return { dist: best, present };
+}
+function luxRead() { node.uAh += COST.lux; return daylight(env.t) + (env.lights ? 420 : 0) + (rnd() - 0.5) * 8; }
+
+/* =====================================================================
+   5. NODE — máquina de estados (espelha firmware/smartair_node.ino)
+   ===================================================================== */
+function newNode() {
+  node = { state: 'VAZIO', acCmd: env.acOn, lastPresence: env.acOn ? env.t : -1e9, occStart: env.acOn ? env.t - 3600 : null,
+    conf: null, lastPirWake: -1e9, lastUs: -1e9, lastLux: -1e9, luxPrev: null, lux: 0, lightOnAt: -1e9, lightsOffAt: null,
+    deadline: null, deadlineWhy: '', verify: null, lastHb: env.t, uAh: 0, wakes: 0, usCount: 0, irCount: 0, irRetries: 0, falsePos: 0,
+    outLogged: false, irVis: [] };
+  if (env.acOn) node.state = 'OCUPADO';
+}
+function wake() { node.uAh += COST.wake; node.wakes++; }
+function radio() { if (CFG.radio === 'espnow') node.uAh += COST.espnow; else if (CFG.radio === 'wifi') node.uAh += COST.wifi; }
+function setState(s, why, color) {
+  if (node.state === s) return; node.state = s; radio();
+  rec.state.push({ t: env.t, s });
+  if (why) logEv(why, color);
+}
+function readLux(t) {
+  if (!CFG.sensors.lux) return;
+  const v = luxRead(); node.lastLux = t;
+  if (node.luxPrev !== null) {
+    if (v - node.luxPrev >= CFG.luxJump) { node.lightOnAt = t; node.lightsOffAt = null; logEv(`☀ Sensor de luz: luz acesa (${Math.round(node.luxPrev)} → ${Math.round(v)} lux)`, '#fde047'); }
+    else if (node.luxPrev - v >= CFG.luxJump) { node.lightsOffAt = t; logEv(`🌑 Sensor de luz: luz apagada (${Math.round(node.luxPrev)} → ${Math.round(v)} lux)`, '#fde047'); onLightsOff(t); }
+  }
+  node.luxPrev = v; node.lux = v;
+}
+function sendIR(on, retry = false) {
+  node.uAh += COST.ir; node.irCount++; if (retry) node.irRetries++;
+  const ok = rnd() < CFG.irSuccess;
+  if (ok) env.acOn = on;
+  node.acCmd = on; radio();
+  rec.ir.push({ t: env.t, on, ok });
+  node.irVis.push({ real: performance.now(), on });
+  logEv(`📡 IR → ${on ? 'LIGAR' : 'DESLIGAR'} ar-condicionado${retry ? ' (reenvio)' : ''}${ok ? '' : ' — sinal não recebido pelo AC'}`, '#e879f9');
+  if (CFG.verify) node.verify = { t: env.t + CFG.verifyAfterS, on, T0: env.temp, retries: retry ? 1 : 0 };
+}
+function confirmNow(t, why) {
+  node.conf = null; node.occStart = t; node.lastPresence = t;
+  if (!inHours(t)) {
+    setState('OCUPADO', `👥 Presença confirmada (${why}) — fora do horário de funcionamento: AC mantido desligado`, '#fbbf24');
+    return;
+  }
+  setState('OCUPADO', `👥 Presença confirmada (${why})`, '#4ade80');
+  if (!node.acCmd) sendIR(true);
+}
+function onLightsOff(t) {
+  if (node.state === 'CONTAGEM') {
+    const d = t + CFG.fastOffMin * 60;
+    if (d < node.deadline) { node.deadline = d; node.deadlineWhy = 'luz apagada'; logEv(`⏱ Luz apagada sem movimento: contagem reduzida para ${CFG.fastOffMin} min`, '#93c5fd'); }
+  }
+}
+function startCountdown(t) {
+  let d = node.lastPresence + CFG.countdownMin * 60, why = `${CFG.countdownMin} min`;
+  if (node.occStart !== null && node.lastPresence - node.occStart < CFG.shortVisitThresholdS) { d = node.lastPresence + CFG.shortVisitMin * 60; why = `visita curta: ${CFG.shortVisitMin} min`; }
+  if (node.lightsOffAt !== null && node.lightsOffAt >= node.lastPresence - 60) { const f = Math.max(node.lightsOffAt, node.lastPresence) + CFG.fastOffMin * 60; if (f < d) { d = f; why = `luz apagada: ${CFG.fastOffMin} min`; } }
+  node.deadline = d; node.deadlineWhy = why;
+  setState('CONTAGEM', `⏳ Sem presença — contagem iniciada (${why})`, '#93c5fd');
+}
+
+function nodeStep() {
+  const t = env.t;
+  node.uAh += CFG.sleepUA / 3600;                         // sono profundo
+  // heartbeat
+  const hb = CFG.radio === 'espnow' ? 900 : CFG.radio === 'wifi' ? 3600 : Infinity;
+  if (t - node.lastHb >= hb) { node.lastHb = t; wake(); radio(); }
+  // leituras periódicas de luz (timer)
+  const luxInt = node.state === 'CONTAGEM' ? CFG.luxCountS : CFG.luxIdleS;
+  if (CFG.sensors.lux && t - node.lastLux >= luxInt) readLux(t);
+  // verificação pós-comando (AHT20)
+  if (node.verify && t >= node.verify.t) {
+    const v = node.verify; node.verify = null; node.uAh += COST.aht;
+    const dT = env.temp - v.T0;
+    const ok = v.on ? (dT <= -0.3 || env.temp <= CFG.setpoint + 0.8) : (dT >= 0.2);
+    if (ok) logEv(`🌡 AHT20 confirma: AC ${v.on ? 'ligado' : 'desligado'} (${dT >= 0 ? '+' : ''}${dT.toFixed(1)} °C em 6 min)`, '#a7f3d0');
+    else if (v.retries < 1 && node.acCmd === v.on) { logEv(`⚠ AHT20: temperatura não mudou como esperado — AC não obedeceu, reenviando`, '#fb923c'); sendIR(v.on, true); }
+    else if (node.acCmd === v.on) { logEv('🚨 ALERTA enviado: AC não responde ao IR (verificar alinhamento)', '#f87171'); }
+  }
+
+  switch (node.state) {
+    case 'VAZIO':
+      if (env.pirEdge) {
+        wake(); node.lastPirWake = t;
+        node.conf = { t0: t, edges: 1, usDone: false };
+        setState('CONFIRMANDO', '👣 PIR acordou o ESP32 — confirmando presença…', '#fbbf24');
+        if (CFG.sensors.lux) readLux(t);
+        if (CFG.sensors.us) { const r = usBurst(); if (r.present) return confirmNow(t, 'PIR + ultrassom'); }
+        if (CFG.sensors.lux && t - node.lightOnAt <= 120) return confirmNow(t, 'PIR + luz acendeu');
+      }
+      break;
+    case 'CONFIRMANDO': {
+      const c = node.conf;
+      if (env.pirEdge) { wake(); c.edges++; }
+      if (c.edges >= 2) return confirmNow(t, '2 disparos do PIR');
+      if (CFG.sensors.lux && t - node.lightOnAt <= 120 && node.lightOnAt >= c.t0 - 120) return confirmNow(t, 'PIR + luz acendeu');
+      if (CFG.sensors.us && !c.usDone && t - c.t0 >= CFG.usConfirmAtS) { c.usDone = true; if (usBurst().present) return confirmNow(t, 'PIR + ultrassom'); }
+      if (t - c.t0 >= CFG.confirmWinS) { node.conf = null; node.falsePos++; setState('VAZIO', '✋ Sem confirmação em 60 s — falso positivo evitado, AC não ligado', '#9ca3af'); }
+      break;
+    }
+    case 'OCUPADO':
+      if (inHours(t) && !node.acCmd) { logEv('🕡 Início do horário de funcionamento com a sala ocupada', '#4ade80'); sendIR(true); }
+      if (env.pirEdge && t - node.lastPirWake >= CFG.pirMaskS) { wake(); node.lastPirWake = t; node.lastPresence = t; }
+      if (env.pirHigh && t - node.lastPirWake < CFG.pirMaskS) node.lastPresence = Math.max(node.lastPresence, node.lastPirWake);
+      if (t - node.lastPresence >= CFG.quietToCountS) {
+        // antes de iniciar a contagem, o ultrassom confere a zona central (evita oscilar com pessoa parada)
+        if (CFG.sensors.us && t - node.lastUs >= CFG.usCountS) { node.lastUs = t; if (usBurst().present) { node.lastPresence = t; break; } }
+        startCountdown(t);
+      }
+      break;
+    case 'CONTAGEM':
+      if (env.pirEdge) { wake(); node.lastPirWake = t; node.lastPresence = t; setState('OCUPADO', '👣 PIR detectou movimento — contagem cancelada', '#4ade80'); break; }
+      if (CFG.sensors.us && t - node.lastUs >= CFG.usCountS) { node.lastUs = t; if (usBurst().present) { node.lastPresence = t; setState('OCUPADO', '🔊 Ultrassom detectou pessoa parada — contagem cancelada', '#22d3ee'); break; } }
+      if (t >= node.deadline) {
+        node.occStart = null;
+        if (node.acCmd) { setState('VAZIO', `✅ Contagem encerrada (${node.deadlineWhy}) — sala vazia`, '#9ca3af'); sendIR(false); }
+        else setState('VAZIO', '✅ Contagem encerrada — sala vazia (AC já estava desligado)', '#9ca3af');
+      }
+      break;
+  }
+}
+
+/* =====================================================================
+   6. REGISTRO / LINHA DO TEMPO
+   ===================================================================== */
+function newRec() { rec = { samples: [], pir: [], us: [], ir: [], state: [] }; }
+function sample() {
+  rec.samples.push({ t: env.t, n: occupants(), s: node.state, ac: env.acOn, base: env.baseOn, lux: daylight(env.t) + (env.lights ? 420 : 0), temp: env.temp });
+}
+const logEl = document.getElementById('log');
+function logEv(msg, color = '#cfdcd6') {
+  log.unshift({ t: env.t, msg, color });
+  if (log.length > 300) log.pop();
+  logDirty = true;
+}
+let logDirty = false;
+function renderLog() {
+  if (!logDirty) return; logDirty = false;
+  logEl.innerHTML = log.slice(0, 120).map(l => `<div><span class="t">${fmt(l.t, true)}</span> <span style="color:${l.color}">${l.msg}</span></div>`).join('');
+}
+
+/* =====================================================================
+   7. CENA 3D
+   ===================================================================== */
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+view.appendChild(renderer.domElement);
+const labelR = new CSS2DRenderer(); Object.assign(labelR.domElement.style, { position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }); view.appendChild(labelR.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0d1512);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.02, 200);
+const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.target.set(0, 0.8, 0);
+const hemi = new THREE.HemisphereLight(0xdfefff, 0x302820, 0.55); scene.add(hemi);
+const sunL = new THREE.DirectionalLight(0xfff1d6, 1.2); sunL.position.set(12, 14, 4); sunL.castShadow = true;
+sunL.shadow.mapSize.set(2048, 2048); Object.assign(sunL.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8 }); scene.add(sunL);
+const roomLight = new THREE.PointLight(0xfff6e5, 0, 14, 1.4); roomLight.position.set(0, 2.8, 0); scene.add(roomLight);
+
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, ...o });
+function bx(w, h, d, m, x, y, z, parent = scene) { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; parent.add(o); return o; }
+
+// piso e paredes (paredes só visíveis por dentro → efeito "casa de bonecas")
+const floorTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#c8b79a'; g.fillRect(0, 0, 256, 256); g.strokeStyle = '#b09f82'; g.lineWidth = 2; for (let i = 0; i <= 256; i += 64) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 256); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(256, i); g.stroke(); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 5); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d), M(0xffffff, { map: floorTex, roughness: 0.85 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const wallM = M(0xe9e6df, { roughness: 0.95, side: THREE.FrontSide });
+function wall(w, h, pos, rotY) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallM); m.position.copy(pos); m.rotation.y = rotY; m.receiveShadow = true; scene.add(m); return m; }
+wall(ROOM.w, ROOM.h, new THREE.Vector3(0, 1.5, -5), 0);          // frente (normal +z)
+wall(ROOM.w, ROOM.h, new THREE.Vector3(0, 1.5, 5), Math.PI);     // fundo
+wall(ROOM.d, ROOM.h, new THREE.Vector3(-4, 1.5, 0), Math.PI / 2); // esquerda
+wall(ROOM.d, ROOM.h, new THREE.Vector3(4, 1.5, 0), -Math.PI / 2); // direita (janelas e porta)
+// rodapé do piso
+const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(ROOM.w, ROOM.h, ROOM.d)), new THREE.LineBasicMaterial({ color: 0x3a4a44 })); edge.position.y = 1.5; scene.add(edge);
+// quadro, mesa do professor
+bx(3.6, 1.2, 0.04, M(0xf8fafc, { roughness: 0.3 }), -1.2, 1.5, -4.97);
+bx(3.7, 0.06, 0.08, M(0x9ca3af), -1.2, 0.88, -4.93);
+bx(1.4, 0.75, 0.7, M(0x8b6b4a), -1.6, 0.375, -3.6);
+// janelas (parede direita) com luz do dia
+const winM = new THREE.MeshStandardMaterial({ color: 0xbfe3ff, emissive: 0x9fd2ff, emissiveIntensity: 0.4, side: THREE.DoubleSide });
+for (const z of [-0.8, 1.4, 3.6]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.3), winM); w.position.set(3.99, 1.75, z); w.rotation.y = -Math.PI / 2; scene.add(w); }
+// porta
+bx(0.06, 2.1, 1.0, M(0x6b4f35), 3.98, 1.05, -3.6);
+// carteiras e cadeiras
+const deskM = M(0xd6c3a0, { roughness: 0.6 }), legM = M(0x374151, { metalness: 0.5, roughness: 0.4 }), chairM = M(0x1f6f4a);
+for (const s of SEATS) {
+  bx(0.6, 0.04, 0.45, deskM, s.x, 0.74, s.desk);
+  bx(0.04, 0.72, 0.04, legM, s.x - 0.26, 0.36, s.desk); bx(0.04, 0.72, 0.04, legM, s.x + 0.26, 0.36, s.desk);
+  bx(0.42, 0.04, 0.4, chairM, s.x, 0.45, s.z); bx(0.42, 0.42, 0.04, chairM, s.x, 0.68, s.z + 0.2);
+}
+// luminárias do teto
+const lampM = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff6e0, emissiveIntensity: 0 });
+const lamps = []; for (const x of [-2, 2]) for (const z of [-3, 0, 3]) { const l = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.04, 0.3), lampM); l.position.set(x, 2.97, z); scene.add(l); lamps.push(l); }
+
+// ar-condicionado split
+const acG = new THREE.Group(); acG.position.copy(AC); scene.add(acG);
+bx(1.0, 0.3, 0.22, M(0xf8fafc, { roughness: 0.35 }), 0, 0, 0, acG);
+const louver = bx(0.9, 0.03, 0.08, M(0xe5e7eb), 0, -0.14, 0.1, acG);
+const acLed = bx(0.03, 0.03, 0.01, new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x000000 }), 0.38, -0.08, 0.112, acG);
+bx(0.06, 0.05, 0.01, M(0x222222), 0.42, -0.1, 0.112, acG); // receptor IR
+// partículas de ar frio
+const NP = 260; const airGeo = new THREE.BufferGeometry(); const airPos = new Float32Array(NP * 3); const airLife = new Float32Array(NP);
+for (let i = 0; i < NP; i++) { airLife[i] = Math.random(); }
+airGeo.setAttribute('position', new THREE.BufferAttribute(airPos, 3));
+const air = new THREE.Points(airGeo, new THREE.PointsMaterial({ color: 0x93c5fd, size: 0.06, transparent: true, opacity: 0.0, depthWrite: false })); scene.add(air);
+
+// Smart Air Node (escala real) + suporte
+const nodeG = new THREE.Group(); nodeG.position.copy(DEV); nodeG.rotation.set(-THREE.MathUtils.degToRad(15), Math.PI, 0); scene.add(nodeG);
+const nodeBodyM = M(0xf3f5f4, { roughness: 0.45 }), nodeDarkM = M(0x111111);
+bx(0.12, 0.08, 0.044, nodeBodyM, 0, 0, 0.022, nodeG).rotation.y = 0;
+const domeG = new THREE.SphereGeometry(0.0115, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); domeG.rotateX(Math.PI / 2);
+const dome = new THREE.Mesh(domeG, M(0xf7f7f2, { roughness: 0.3 })); dome.position.set(0, 0.0175, 0.044); nodeG.add(dome);
+for (const x of [-0.037, -0.011]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.004, 20), M(0xc7ccd1, { metalness: 0.8, roughness: 0.3 })); c.rotation.x = Math.PI / 2; c.position.set(x, -0.0195, 0.045); nodeG.add(c); }
+bx(0.028, 0.015, 0.002, M(0x24101a, { roughness: 0.1 }), 0.0375, -0.0185, 0.045, nodeG);
+const statusLed = bx(0.004, 0.004, 0.002, new THREE.MeshStandardMaterial({ color: 0x2e7dff, emissive: 0x2e7dff, emissiveIntensity: 0 }), -0.047, 0.0275, 0.045, nodeG);
+const bracket = bx(0.09, 0.062, 0.012, M(0xf4f6f5), 0, 0, -0.006, nodeG);
+const halo = new THREE.Mesh(new THREE.RingGeometry(0.078, 0.088, 40), new THREE.MeshBasicMaterial({ color: 0x3fae6f, transparent: true, opacity: 0.6, side: THREE.DoubleSide })); halo.position.set(0, 0, 0.05); nodeG.add(halo);
+function applyCaseLook() {
+  const black = CFG.caseMode === 'print';
+  nodeBodyM.color.setHex(black ? 0x1c1c1e : 0xf3f5f4); nodeBodyM.roughness = black ? 0.8 : 0.45;
+  bracket.material.color.setHex(black ? 0x232326 : 0xf4f6f5);
+  document.getElementById('cCaseProd').classList.toggle('on', !black);
+  document.getElementById('cCasePrint').classList.toggle('on', black);
+  document.getElementById('lnkDemo').href = 'demo-3d.html' + (black ? '?caixa=3d' : '');
+}
+
+// cone do PIR (setor no piso, recortado pelas paredes)
+function pirFloorShape() {
+  const pts = [new THREE.Vector2(DEV.x, -DEV.z)];
+  for (let a = -50; a <= 50; a += 2) {
+    const r = THREE.MathUtils.degToRad(a); const dx = Math.sin(r), dz = -Math.cos(r);
+    let L = PIR_RANGE; if (dx > 0) L = Math.min(L, (3.98 - DEV.x) / dx); if (dx < 0) L = Math.min(L, (-3.98 - DEV.x) / dx); L = Math.min(L, (DEV.z + 4.98) / -dz);
+    pts.push(new THREE.Vector2(DEV.x + dx * L, -(DEV.z + dz * L)));
+  }
+  return new THREE.Shape(pts);
+}
+const pirMat = new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide });
+const pirFan = new THREE.Mesh(new THREE.ShapeGeometry(pirFloorShape()), pirMat); pirFan.rotation.x = -Math.PI / 2; pirFan.position.y = 0.015; scene.add(pirFan);
+// linhas das bordas do cone do PIR
+const pirEdges = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([DEV, new THREE.Vector3(DEV.x + Math.sin(-PIR_HALF) * 6.2, 0, DEV.z - Math.cos(PIR_HALF) * 6.2), DEV, new THREE.Vector3(DEV.x + Math.sin(PIR_HALF) * 6.2, 0, DEV.z - Math.cos(PIR_HALF) * 6.2)]), new THREE.LineBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.35 })); scene.add(pirEdges);
+// feixe do ultrassom
+const usLen = US_BASELINE, usR = Math.tan(US_HALF) * usLen;
+const usGeo = new THREE.ConeGeometry(usR, usLen, 32, 1, true); usGeo.translate(0, -usLen / 2, 0);
+const usMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide });
+const usCone = new THREE.Mesh(usGeo, usMat); usCone.position.copy(DEV);
+usCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), US_AXIS); scene.add(usCone);
+const usSpot = new THREE.Mesh(new THREE.CircleGeometry(usR, 32), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.15, depthWrite: false })); usSpot.position.copy(US_TARGET).setY(0.77); usSpot.rotation.x = -Math.PI / 2; scene.add(usSpot);
+// feixe IR
+const irCurve = new THREE.LineCurve3(DEV.clone().add(new THREE.Vector3(0.04, -0.02, -0.05)), AC.clone().add(new THREE.Vector3(0.42, -0.1, 0.12)));
+const irMat = new THREE.MeshBasicMaterial({ color: 0xd946ef, transparent: true, opacity: 0, depthWrite: false });
+const irBeam = new THREE.Mesh(new THREE.TubeGeometry(irCurve, 8, 0.035, 8), irMat); scene.add(irBeam);
+const irPulses = []; for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0xf0abfc, transparent: true, opacity: 0 })); scene.add(s); irPulses.push(s); }
+
+// rótulos flutuantes
+function mkLabel(html, pos) { const el = document.createElement('div'); el.style.cssText = 'background:#0d1512dd;border:1px solid #24352f;border-radius:8px;padding:3px 8px;font:600 12px Segoe UI;color:#e6efe9;white-space:nowrap'; el.innerHTML = html; const o = new CSS2DObject(el); o.position.copy(pos); scene.add(o); return el; }
+const lblNode = mkLabel('Smart Air Node', DEV.clone().add(new THREE.Vector3(0, 0.35, -0.1)));
+const lblAc = mkLabel('AC', AC.clone().add(new THREE.Vector3(0, 0.38, 0.1)));
+
+// pessoas
+const personMeshes = new Map();
+const capsule = new THREE.CapsuleGeometry(0.19, 0.75, 4, 10), head = new THREE.SphereGeometry(0.13, 16, 12);
+const ringGeo = new THREE.RingGeometry(0.28, 0.36, 28);
+function personMesh(p) {
+  const g = new THREE.Group(); const m = M(KIND[p.kind].color, { roughness: 0.6 });
+  const b = new THREE.Mesh(capsule, m); b.position.y = 0.6; b.castShadow = true; g.add(b);
+  const h = new THREE.Mesh(head, M(0xf1c9a5)); h.position.y = 1.22; h.castShadow = true; g.add(h);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
+  const ring2 = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })); ring2.rotation.x = -Math.PI / 2; ring2.position.y = 0.03; ring2.scale.setScalar(1.25); g.add(ring2);
+  g.userData = { body: b, headM: h, ring, ring2 }; scene.add(g); return g;
+}
+function syncPeople(nowReal) {
+  const seen = new Set();
+  for (const p of env.people) {
+    if (p.state === 'gone') continue;
+    seen.add(p.id);
+    let g = personMeshes.get(p.id); if (!g) { g = personMesh(p); personMeshes.set(p.id, g); }
+    g.position.lerp(p.pos, 0.35);
+    const seated = p.state === 'seated' && !p.path.length;
+    const bob = p.walking ? Math.abs(Math.sin(nowReal * 0.012 + p.walkPhase)) * 0.05 : 0;
+    g.userData.body.position.y = (seated ? 0.42 : 0.6) + bob; g.userData.headM.position.y = (seated ? 1.04 : 1.22) + bob;
+    const mk = env.motionMarks.length && env.motionMarks.findLast(m => m.id === p.id);
+    g.userData.ring.material.opacity = mk && env.t - mk.t < 3 ? 0.9 : 0;
+    const usHit = env.lastUsVis.present && env.t - env.lastUsVis.t < 4 && (() => { const c = new THREE.Vector3(p.pos.x, seated ? 1.1 : 1.35, p.pos.z).sub(DEV); return c.length() < US_RANGE && c.normalize().angleTo(US_AXIS) < US_HALF; })();
+    g.userData.ring2.material.opacity = usHit ? 0.9 : 0;
+  }
+  for (const [id, g] of personMeshes) if (!seen.has(id)) { scene.remove(g); personMeshes.delete(id); }
+  if (env.motionMarks.length > 400) env.motionMarks = env.motionMarks.slice(-200);
+}
+
+// câmeras
+const CAMS = {
+  geral: { p: [-9.5, 8.2, 2.5], t: [0, 0.6, 0] },
+  planta: { p: [0.01, 15, 0.01], t: [0, 0, 0] },
+  frente: { p: [-2.6, 2.3, -4.4], t: [0, 1.4, 4.5] },
+  node: { p: [-0.22, 2.2, 4.6], t: [0, 2.34, 4.95] },
+};
+let camAnim = null;
+function goCam(k, instant) {
+  const c = CAMS[k]; document.querySelectorAll('[data-cam]').forEach(b => b.classList.toggle('on', b.dataset.cam === k));
+  if (instant) { camera.position.set(...c.p); controls.target.set(...c.t); return; }
+  camAnim = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...c.p), t1: new THREE.Vector3(...c.t) };
+}
+document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => goCam(b.dataset.cam));
+goCam('geral', true);
+
+function resize() {
+  const r = view.getBoundingClientRect(); renderer.setSize(r.width, r.height); labelR.setSize(r.width, r.height);
+  camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); resizeTl();
+}
+addEventListener('resize', resize);
+
+/* --- atualização visual por quadro --- */
+const STATE_COLOR = { VAZIO: '#6b7280', CONFIRMANDO: '#f59e0b', OCUPADO: '#22c55e', CONTAGEM: '#3b82f6' };
+function updateVisuals(dtReal, nowReal) {
+  // luz
+  const day = daylight(env.t) / 240;
+  sunL.intensity = 0.25 + day * 1.1; hemi.intensity = 0.25 + day * 0.35;
+  winM.emissiveIntensity = 0.05 + day * 0.6;
+  lampM.emissiveIntensity = env.lights ? 1.6 : 0; roomLight.intensity = env.lights ? 9 : 0;
+  // sensores
+  pirMat.opacity = env.pirHigh ? 0.2 : 0.05;
+  const usAge = env.t - env.lastUsVis.t;
+  usMat.opacity = usAge < 3 ? (env.lastUsVis.present ? 0.32 : 0.2) : 0.06;
+  usMat.color.setHex(usAge < 3 && env.lastUsVis.present ? 0x67e8f9 : 0x22d3ee);
+  usCone.visible = usSpot.visible = CFG.sensors.us; pirFan.visible = pirEdges.visible = CFG.sensors.pir;
+  // IR
+  const last = node.irVis[node.irVis.length - 1]; const age = last ? (nowReal - last.real) / 1000 : 99;
+  irMat.opacity = age < 1.6 ? 0.35 * (1 - age / 1.6) : 0;
+  irPulses.forEach((s, i) => { const f = (age * 1.6 + i / irPulses.length) % 1; s.position.copy(irCurve.getPoint(f)); s.material.opacity = age < 1.6 ? 0.9 : 0; });
+  statusLed.material.emissiveIntensity = (age < 0.5 || (env.pirHigh && Math.sin(nowReal * 0.03) > 0)) ? 3 : 0;
+  // AC
+  louver.rotation.x = THREE.MathUtils.lerp(louver.rotation.x, env.acOn ? 0.7 : 0, 0.08);
+  acLed.material.emissive.setHex(env.acOn ? 0x22ff88 : 0x000000); acLed.material.emissiveIntensity = 2;
+  air.material.opacity = THREE.MathUtils.lerp(air.material.opacity, env.acOn ? 0.55 : 0, 0.05);
+  for (let i = 0; i < NP; i++) {
+    airLife[i] += dtReal * 0.35; if (airLife[i] > 1) airLife[i] -= 1;
+    const l = airLife[i], sx = (((i * 9301 + 49297) % 233280) / 233280 - 0.5) * 0.9;
+    airPos[i * 3] = AC.x + sx * (1 + l * 1.5); airPos[i * 3 + 1] = AC.y - 0.15 - l * 1.6; airPos[i * 3 + 2] = AC.z + 0.15 + l * 3.2;
+  }
+  airGeo.attributes.position.needsUpdate = true;
+  halo.material.color.set(STATE_COLOR[node.state]);
+  halo.material.opacity = 0.35 + 0.25 * Math.sin(nowReal * 0.004);
+  lblNode.innerHTML = `Smart Air Node · <span style="color:${STATE_COLOR[node.state]}">${node.state}</span>` + (node.state === 'CONTAGEM' ? ` <b style="color:#93c5fd">${mmss(node.deadline - env.t)}</b>` : '');
+  lblAc.innerHTML = env.acOn ? `<span style="color:#4ade80">● AC ligado</span> · ${CFG.setpoint} °C` : '<span style="color:#9ca3af">○ AC desligado</span>';
+  syncPeople(nowReal);
+}
+
+/* =====================================================================
+   8. LINHA DO TEMPO (canvas)
+   ===================================================================== */
+const tl = document.getElementById('tl'), tg = tl.getContext('2d');
+function resizeTl() { const r = tl.getBoundingClientRect(); tl.width = r.width * devicePixelRatio; tl.height = r.height * devicePixelRatio; }
+function drawTl() {
+  const W = tl.width, H = tl.height, dpr = devicePixelRatio; tg.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = W / dpr, h = H / dpr; tg.clearRect(0, 0, w, h); tg.fillStyle = '#0b1210'; tg.fillRect(0, 0, w, h);
+  const L = 132, R = 12, T = 8, x = t => L + (t - env.t0) / (env.t1 - env.t0) * (w - L - R);
+  const lanes = [['Pessoas', 34], ['Estado do Node', 16], ['AC Smart Air', 14], ['AC manual (ref.)', 14], ['PIR', 14], ['Ultrassom', 14], ['Luz (lux)', 26], ['Temperatura', 26]];
+  let y = T; const Y = {};
+  tg.font = '11px Segoe UI'; tg.textBaseline = 'middle';
+  for (const [n, hh] of lanes) { Y[n] = [y, hh]; tg.fillStyle = '#93a8a0'; tg.fillText(n, 8, y + hh / 2); tg.fillStyle = '#121d19'; tg.fillRect(L, y, w - L - R, hh); y += hh + 4; }
+  // grade de horas
+  tg.strokeStyle = '#1e2d28'; tg.fillStyle = '#5f736b';
+  const step = (env.t1 - env.t0) > 6 * 3600 ? 3600 : (env.t1 - env.t0) > 2 * 3600 ? 1800 : 900;
+  for (let t = Math.ceil(env.t0 / step) * step; t <= env.t1; t += step) { tg.beginPath(); tg.moveTo(x(t), T); tg.lineTo(x(t), y - 4); tg.stroke(); tg.fillText(fmt(t), x(t) - 14, y + 6); }
+  const S = rec.samples; if (!S.length) return;
+  const maxN = Math.max(10, ...S.map(s => s.n));
+  // pessoas
+  let [py, ph] = Y['Pessoas']; tg.fillStyle = '#4b6b8a'; tg.beginPath(); tg.moveTo(x(S[0].t), py + ph);
+  for (const s of S) tg.lineTo(x(s.t), py + ph - s.n / maxN * ph); tg.lineTo(x(S[S.length - 1].t), py + ph); tg.fill();
+  tg.fillStyle = '#93a8a0'; tg.fillText(String(maxN), L + 3, py + 6);
+  // faixas
+  const band = (lane, fn, col) => { const [yy, hh] = Y[lane]; for (let i = 0; i < S.length - 1; i++) { const c = col(S[i]); if (!c) continue; tg.fillStyle = c; tg.fillRect(x(S[i].t), yy, Math.max(1, x(S[i + 1].t) - x(S[i].t) + 0.5), hh); } };
+  band('Estado do Node', s => s, s => STATE_COLOR[s.s]);
+  band('AC Smart Air', s => s, s => s.ac ? '#38bdf8' : null);
+  band('AC manual (ref.)', s => s, s => s.base ? '#ef4444aa' : null);
+  // PIR
+  let [ry, rh] = Y['PIR']; tg.fillStyle = '#ffd400'; for (const t of rec.pir) tg.fillRect(x(t), ry + 2, 1.2, rh - 4);
+  // US
+  [ry, rh] = Y['Ultrassom']; for (const u of rec.us) { tg.fillStyle = u.present ? '#22d3ee' : '#3f5953'; tg.fillRect(x(u.t) - 1, ry + (u.present ? 2 : 5), 2.5, u.present ? rh - 4 : rh - 10); }
+  // IR (marcadores na faixa do AC)
+  [ry, rh] = Y['AC Smart Air']; for (const i of rec.ir) { tg.fillStyle = i.ok ? '#e879f9' : '#fb923c'; tg.beginPath(); tg.arc(x(i.t), ry + rh / 2, 3.5, 0, 7); tg.fill(); }
+  // lux e temperatura
+  const line = (lane, val, lo, hi, col) => { const [yy, hh] = Y[lane]; tg.strokeStyle = col; tg.lineWidth = 1.5; tg.beginPath(); S.forEach((s, i) => { const v = (val(s) - lo) / (hi - lo); const X = x(s.t), YY = yy + hh - Math.max(0, Math.min(1, v)) * hh; i ? tg.lineTo(X, YY) : tg.moveTo(X, YY); }); tg.stroke(); };
+  line('Luz (lux)', s => s.lux, 0, 700, '#fde047');
+  line('Temperatura', s => s.temp, 21, 33, '#fb7185');
+  [ry, rh] = Y['Temperatura']; tg.fillStyle = '#93a8a0'; tg.fillText('21–33 °C', L + 3, ry + 7);
+  // cursor
+  tg.strokeStyle = '#e6efe9'; tg.lineWidth = 1; tg.beginPath(); tg.moveTo(x(env.t), T); tg.lineTo(x(env.t), y - 4); tg.stroke();
+}
+
+/* =====================================================================
+   9. UI
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const scnSel = $('scn');
+scnSel.innerHTML = Object.entries(SCENARIOS).map(([k, s]) => `<option value="${k}">${s.n}</option>`).join('');
+let scKey = new URLSearchParams(location.search).get('cenario') || 'dia'; if (!SCENARIOS[scKey]) scKey = 'dia';
+scnSel.value = scKey;
+let speed = 300, playing = true;
+const SPEEDS = [1, 10, 60, 300, 900];
+$('speeds').innerHTML = SPEEDS.map(s => `<button data-sp="${s}">${s}×</button>`).join('');
+function setSpeed(s) { speed = s; document.querySelectorAll('[data-sp]').forEach(b => b.classList.toggle('on', +b.dataset.sp === s)); }
+document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => setSpeed(+b.dataset.sp));
+$('bPlay').onclick = () => { playing = !playing; $('bPlay').textContent = playing ? '⏸ Pausar' : '▶ Continuar'; $('bPlay').classList.toggle('on', playing); };
+$('bReset').onclick = () => reset();
+scnSel.onchange = () => { scKey = scnSel.value; reset(); };
+
+function reset() {
+  const sc = SCENARIOS[scKey]; rnd = mulberry32(42 + Object.keys(SCENARIOS).indexOf(scKey));
+  newRec(); log = []; pid = 0;
+  for (const [, g] of personMeshes) scene.remove(g); personMeshes.clear();
+  newEnv(sc); newNode(); rec.state.push({ t: env.t, s: node.state });
+  $('scnDesc').textContent = sc.d; $('kBaseLbl').textContent = 'ref.: ' + sc.baseline.label;
+  setSpeed(sc.speed); logEv(`▶ Cenário: ${sc.n}`, '#7cc4ff'); sample(); finished = false;
+  if (!playing) $('bPlay').click();
+}
+let finished = false;
+
+// controle manual
+document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+  const a = b.dataset.act;
+  if (a === 'aluno') spawn('aluno');
+  if (a === 'leitor') spawn('leitor', { cone: true });
+  if (a === 'leitorFora') spawn('leitor', { fora: true });
+  if (a === 'passante') spawn('passante');
+  if (a === 'sai') { const p = env.people.find(p => p.inRoom && p.state !== 'leaving' && p.state !== 'gone' && p.kind !== 'passante'); if (p) leave(p, false); }
+  if (a === 'todos') env.people.filter(p => p.inRoom && p.state !== 'gone' && p.kind !== 'passante').forEach(p => leave(p, true));
+  if (a === 'luz') { env.lights = !env.lights; logEv(env.lights ? '💡 Luz acesa (manual)' : '💡 Luz apagada (manual)', '#fde047'); }
+  if (finished) { env.t1 = Math.min(hm('23:59'), env.t + 3600); finished = false; }
+});
+// configuração
+const bindRange = (id, vid, fn, unit) => { const e = $(id); const upd = () => { fn(+e.value); $(vid).textContent = e.value + unit; }; e.oninput = upd; upd(); };
+bindRange('cCount', 'vCount', v => CFG.countdownMin = v, ' min');
+bindRange('cFast', 'vFast', v => CFG.fastOffMin = v, ' min');
+bindRange('cIr', 'vIr', v => CFG.irSuccess = v / 100, ' %');
+const togBtn = (id, key) => $(id).onclick = () => { CFG.sensors[key] = !CFG.sensors[key]; $(id).classList.toggle('on', CFG.sensors[key]); logEv(`⚙ Sensor ${$(id).textContent} ${CFG.sensors[key] ? 'ativado' : 'desativado'}`, '#7cc4ff'); };
+togBtn('tPir', 'pir'); togBtn('tUs', 'us'); togBtn('tLux', 'lux');
+$('tVer').onclick = () => { CFG.verify = !CFG.verify; $('tVer').classList.toggle('on', CFG.verify); $('tVer').textContent = CFG.verify ? 'Ligada' : 'Desligada'; };
+$('cAc').onchange = e => CFG.acKW = +e.target.value;
+$('cTar').onchange = e => CFG.tarifa = +e.target.value;
+$('cHw').onchange = e => CFG.sleepUA = +e.target.value;
+$('cRadio').onchange = e => CFG.radio = e.target.value;
+$('cCaseProd').onclick = () => { CFG.caseMode = 'prod'; applyCaseLook(); };
+$('cCasePrint').onclick = () => { CFG.caseMode = 'print'; applyCaseLook(); goCam('node'); };
+
+function updateUI() {
+  $('hClock').textContent = fmt(env.t, speed <= 10);
+  const st = $('hState'); st.textContent = node.state; st.style.background = STATE_COLOR[node.state];
+  const cd = $('hCount'); cd.style.display = node.state === 'CONTAGEM' ? 'block' : 'none'; if (node.state === 'CONTAGEM') cd.textContent = mmss(node.deadline - env.t);
+  $('hAc').textContent = env.acOn ? 'LIGADO' : 'DESLIGADO'; $('hAc').style.color = env.acOn ? '#4ade80' : '#9ca3af';
+  $('hTemp').textContent = `sala ${env.temp.toFixed(1)} °C · externa ${outsideTemp(env.t).toFixed(0)} °C`;
+  $('hPeople').textContent = occupants();
+  const save = env.kwhBase > 0 ? (1 - env.kwhSmart / env.kwhBase) * 100 : 0;
+  $('kSave').textContent = (env.kwhBase > 0 ? save.toFixed(0) : '0') + ' %';
+  $('kKwh').textContent = `${env.kwhSmart.toFixed(1)} / ${env.kwhBase.toFixed(1)} kWh`;
+  $('kReais').textContent = 'R$ ' + ((env.kwhBase - env.kwhSmart) * CFG.tarifa).toFixed(2).replace('.', ',');
+  $('kAcH').textContent = `${Math.floor(env.acOnS / 3600)} h ${String(Math.floor(env.acOnS / 60) % 60).padStart(2, '0')}`;
+  $('kDisc').textContent = Math.round(env.discomfortS / 60) + ' min';
+  $('kFalse').textContent = node.falsePos;
+  $('kIr').textContent = `${node.irCount} (${node.irRetries})`;
+  const el = env.t - env.t0; const mAh = node.uAh / 1000;
+  const perDay = el > 600 ? mAh / el * 86400 : null;
+  $('kBat').textContent = perDay ? `${(BAT_USABLE_MAH / (perDay + SELF_DISCH_MAH_DAY) / 30.4).toFixed(0)} meses` : '—';
+  $('sBat').textContent = `${mAh.toFixed(3)} mAh · ${node.wakes} desp.`;
+  $('sPir').className = 'dot' + (env.pirHigh ? ' on' : ''); $('sPirN').textContent = env.pirEdgesTotal + ' disparos';
+  const us = env.lastUsVis; $('sUs').className = 'dot' + (env.t - us.t < 4 ? ' us' : '');
+  $('sUsV').textContent = us.t > 0 ? `${us.dist.toFixed(2)} m ${us.present ? '· pessoa' : '· vazio'}` : '—';
+  $('sLux').className = 'dot' + (env.lights ? ' on' : ''); $('sLuxV').textContent = Math.round(daylight(env.t) + (env.lights ? 420 : 0)) + ' lux';
+  $('sTmp').textContent = env.temp.toFixed(1) + ' °C';
+}
+
+/* =====================================================================
+   10. LOOP
+   ===================================================================== */
+let acc = 0, lastReal = performance.now(), lastUi = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastReal) / 1000); lastReal = now;
+  if (playing && !finished) {
+    acc += dt * speed; let n = 0;
+    while (acc >= 1 && n < 3000) {
+      envStep(); nodeStep(); env.t++; acc--; n++;
+      if (env.t % 30 === 0) sample();
+      if (env.t >= env.t1) { finished = true; logEv('■ Fim do cenário — veja o resultado ao lado', '#7cc4ff'); sample(); break; }
+    }
+  }
+  updateVisuals(dt, now);
+  if (camAnim) { camAnim.t = Math.min(1, camAnim.t + dt * 1.2); const s = camAnim.t * camAnim.t * (3 - 2 * camAnim.t); camera.position.lerpVectors(camAnim.p0, camAnim.p1, s); controls.target.lerpVectors(camAnim.t0, camAnim.t1, s); if (camAnim.t >= 1) camAnim = null; }
+  controls.update();
+  renderer.render(scene, camera); labelR.render(scene, camera);
+  if (now - lastUi > 100) { lastUi = now; updateUI(); drawTl(); renderLog(); }
+  requestAnimationFrame(frame);
+}
+applyCaseLook(); resize(); reset(); requestAnimationFrame(frame);
+window.__sim = { camera, controls, goCam, CFG, get env() { return env; }, get node() { return node; }, get rec() { return rec; }, setSpeed, reset, SCENARIOS,
+  runToEnd() { while (env.t < env.t1) { envStep(); nodeStep(); env.t++; if (env.t % 30 === 0) sample(); } finished = true; } };
+</script>
+</body>
+</html>

@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Air Node 3D</title>
+<style>
+  :root{
+    --bg:#0d1512; --panel:#111c18ee; --panel2:#16241f; --line:#24352f; --text:#e6efe9; --muted:#93a8a0;
+    --green:#2f8f5b; --green2:#1f5e3b; --blue:#5b9bd5; --accent:#7cc4ff; --warn:#ffb547;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;overflow:hidden}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .topbar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:14px;padding:0 16px;background:linear-gradient(#0d1512,#0d1512cc);border-bottom:1px solid var(--line);z-index:5}
+  .brand{font-weight:700;font-size:18px;letter-spacing:.2px}
+  .brand b{color:#3fae6f}.brand i{color:var(--blue);font-style:normal}
+  .topbar .sub{color:var(--muted);font-size:13px}
+  .topbar a{margin-left:auto;color:var(--accent);text-decoration:none;font-size:13px;border:1px solid var(--line);padding:6px 10px;border-radius:8px}
+  .topbar a+a{margin-left:0}
+  .side{position:fixed;top:64px;left:12px;bottom:12px;width:290px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;overflow:auto;z-index:4;backdrop-filter:blur(6px)}
+  .side h3{margin:14px 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .side h3:first-child{margin-top:0}
+  .ctrl{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0}
+  .ctrl input[type=range]{width:150px;accent-color:#3fae6f}
+  .btns{display:flex;flex-wrap:wrap;gap:6px}
+  button,.chip{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;cursor:pointer}
+  button:hover{border-color:#3fae6f}
+  button.on{background:#1f5e3b;border-color:#3fae6f}
+  .list .grp{color:var(--muted);font-size:11.5px;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.06em}
+  .item{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:7px;cursor:pointer;font-size:13px}
+  .item:hover{background:#1b2c26}
+  .item.sel{background:#1f5e3b}
+  .num{min-width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;background:#24352f;font-size:11px;font-weight:700}
+  .item.sel .num{background:#3fae6f;color:#06130c}
+  .detail{position:fixed;top:64px;right:12px;bottom:12px;width:380px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;z-index:4;backdrop-filter:blur(6px)}
+  .detail h2{margin:0 0 2px;font-size:19px}
+  .detail .part{color:var(--accent);font-size:13px;margin-bottom:8px}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#1f5e3b;color:#c9f2d9;margin-right:6px}
+  .detail p{margin:8px 0;color:#cfdcd6}
+  .detail h4{margin:16px 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  td,th{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle;border:1px solid #0006}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .kpi div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px}
+  .kpi b{display:block;font-size:15px}
+  .kpi span{color:var(--muted);font-size:11.5px}
+  .note{border-left:3px solid var(--warn);background:#2a2214;padding:8px 10px;border-radius:6px;color:#f3dcb4;font-size:12.5px;margin-top:10px}
+  .legend .row{display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 4px;cursor:pointer;border-radius:5px}
+  .legend .row:hover{background:#1b2c26}
+  .hotspot{pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:6px;transform:translateY(-14px);user-select:none}
+  .hotspot .dot{width:22px;height:22px;border-radius:50%;background:#3fae6fdd;color:#04110a;font:700 11px/22px system-ui;text-align:center;box-shadow:0 0 0 3px #3fae6f44}
+  .hotspot .lbl{background:#0d1512dd;border:1px solid var(--line);padding:2px 7px;border-radius:6px;font-size:11.5px;white-space:nowrap;opacity:0;transition:opacity .15s}
+  .hotspot:hover .lbl,.hotspot.sel .lbl,.showNames .hotspot .lbl{opacity:1}
+  .hotspot.sel .dot{background:#7cc4ff;box-shadow:0 0 0 4px #7cc4ff55}
+  #tip{position:fixed;pointer-events:none;background:#0d1512ee;border:1px solid var(--line);padding:4px 8px;border-radius:6px;font-size:12px;z-index:9;display:none}
+  .hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#0d1512cc;border:1px solid var(--line);padding:6px 12px;border-radius:999px;color:var(--muted);font-size:12px;z-index:3}
+  @media (max-width:900px){
+    .side{top:auto;bottom:0;left:0;right:0;width:auto;height:34vh;border-radius:12px 12px 0 0}
+    .detail{top:auto;bottom:34vh;left:0;right:0;width:auto;height:30vh;border-radius:12px 12px 0 0}
+    .hint{display:none}
+    .topbar .sub{display:none}
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="topbar">
+  <div class="brand"><b>Smart</b> <i>air</i> · Node</div>
+  <div class="sub">Demonstração 3D dos componentes — clique em qualquer peça, número ou fio</div>
+  <a href="index.html">Início</a>
+  <a href="simulacao.html">Simulação da sala →</a>
+</div>
+
+<aside class="side">
+  <h3>Vista</h3>
+  <div class="ctrl"><span>Explodir</span><input id="explode" type="range" min="0" max="1" step="0.01" value="0"></div>
+  <div class="btns">
+    <button data-view="front">Frente</button>
+    <button data-view="iso">Isométrica</button>
+    <button data-view="side">Lateral</button>
+    <button data-view="back">Traseira</button>
+    <button data-view="wall">Na parede</button>
+  </div>
+  <h3>Exibir</h3>
+  <div class="btns">
+    <button id="bShell" class="on">Carcaça: opaca</button>
+    <button id="bWires" class="on">Conexões</button>
+    <button id="bLabels" class="on">Números</button>
+    <button id="bNames">Nomes</button>
+    <button id="bWall">Parede</button>
+    <button id="bRotate">Girar</button>
+  </div>
+  <h3>Caixa</h3>
+  <div class="btns">
+    <button id="bCaseProd" class="on">Produção (branca)</button>
+    <button id="bCasePrint">Impressão 3D (preta)</button>
+  </div>
+  <div id="stlLinks" style="display:none;margin-top:6px;font-size:12px;color:var(--muted)">STL: <a href="caixa-3d/base.stl" style="color:var(--accent)">base</a> · <a href="caixa-3d/tampa.stl" style="color:var(--accent)">tampa</a> · <a href="caixa-3d/suporte.stl" style="color:var(--accent)">suporte</a> · <a href="caixa-3d/smartair_caixa.scad" style="color:var(--accent)">.scad</a></div>
+  <h3>Componentes</h3>
+  <div class="list" id="list"></div>
+  <h3>Legenda das conexões</h3>
+  <div class="legend" id="legend"></div>
+</aside>
+
+<aside class="detail" id="detail"></aside>
+<div id="tip"></div>
+<div class="hint">Arraste para girar · roda do mouse para zoom · botão direito para mover</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ---------------------------------------------------------------
+   Escala: 1 unidade = 1 cm. Frente do dispositivo aponta para +Z.
+   --------------------------------------------------------------- */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(innerWidth, innerHeight);
+Object.assign(labelRenderer.domElement.style, { position: 'fixed', top: 0, left: 0, pointerEvents: 'none' });
+app.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1512);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(20, 11, 28);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0, 1.5);
+controls.minDistance = 6; controls.maxDistance = 120;
+
+scene.add(new THREE.HemisphereLight(0xdfefff, 0x1a2420, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(14, 22, 26); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -25, right: 25, top: 25, bottom: -25, near: 1, far: 90 });
+scene.add(sun);
+
+const grid = new THREE.GridHelper(80, 40, 0x24352f, 0x18251f);
+grid.position.y = -7; scene.add(grid);
+
+/* ---------------- helpers ---------------- */
+const M = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05, ...o });
+function mesh(geo, mat, x = 0, y = 0, z = 0) {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m;
+}
+function box(w, h, d, mat, x, y, z) { return mesh(new THREE.BoxGeometry(w, h, d), mat, x, y, z); }
+function cylZ(r, len, mat, x, y, z, seg = 28) { // cilindro com eixo em Z, base em z
+  const g = new THREE.CylinderGeometry(r, r, len, seg); g.rotateX(Math.PI / 2); g.translate(0, 0, len / 2);
+  return mesh(g, mat, x, y, z);
+}
+function textTex(lines, { w = 512, h = 256, bg = '#0b3d22', fg = '#e8fff0', font = 'bold 54px Segoe UI', align = 'center', extra } = {}) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  if (bg) { g.fillStyle = bg; g.fillRect(0, 0, w, h); }
+  if (extra) extra(g, w, h);
+  g.fillStyle = fg; g.font = font; g.textAlign = align; g.textBaseline = 'middle';
+  const arr = Array.isArray(lines) ? lines : [lines];
+  arr.forEach((t, i) => g.fillText(t, align === 'center' ? w / 2 : 20, h / 2 + (i - (arr.length - 1) / 2) * (parseInt(font.match(/(\d+)px/)[1]) * 1.15)));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+function rrShape(w, h, r, cx = 0, cy = 0, PathCls = THREE.Shape) {
+  const s = new PathCls(); const x = cx - w / 2, y = cy - h / 2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s;
+}
+function circlePath(x, y, r) { const p = new THREE.Path(); p.absarc(x, y, r, 0, Math.PI * 2, true); return p; }
+function extrude(shape, depth, mat, z) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 24 });
+  return mesh(g, mat, 0, 0, z);
+}
+
+/* ---------------- dimensões ---------------- */
+const W = 12, H = 8, R = 1.1, T = 0.25;      // carcaça 120 x 80 mm
+const Z_SPLIT = 2.2, Z_FRONT = 4.4, Z_PCB = 2.2, PCB_T = 0.16, Z_TOP = Z_PCB + PCB_T;
+
+/* ---------------- componentes ---------------- */
+const comps = {};   // id -> {group, base, off, info, pins}
+const root = new THREE.Group(); scene.add(root);
+
+function addComp(id, base, off, build, pins = {}, labelAt = [0, 0, 1]) {
+  const g = new THREE.Group(); g.position.set(...base); g.userData.compId = id;
+  build(g);
+  g.traverse(o => { if (o.isMesh) o.userData.compId = id; });
+  root.add(g);
+  comps[id] = { id, group: g, base: new THREE.Vector3(...base), off: new THREE.Vector3(...off), pins, labelAt };
+  return g;
+}
+
+/* 0. parede (contexto) */
+const wallGroup = addComp('parede', [0, 0, -1.6], [0, 0, -15], g => {
+  const tex = textTex('', { w: 256, h: 256, bg: '#d9d4cc', extra: (c, w, h) => { for (let i = 0; i < 2500; i++) { c.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`; c.fillRect(Math.random() * w, Math.random() * h, 2, 2); } } });
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(4, 3);
+  g.add(box(44, 30, 2.2, M(0xd9d4cc, { map: tex, roughness: 0.95 }), 0, 0, 0));
+}, {}, [-16, 10, 1.2]);
+wallGroup.visible = false;
+
+/* 1. fita VHB */
+addComp('vhb', [0, 0, -0.5], [0, 0, -9], g => {
+  const foam = M(0x8a8f93, { roughness: 0.9 });
+  g.add(box(7, 1.2, 0.11, foam, 0, 1.9, 0));
+  g.add(box(7, 1.2, 0.11, foam, 0, -1.9, 0));
+  const liner = M(0xc62828, { roughness: 0.8 });
+  g.add(box(7.2, 1.25, 0.02, liner, 0, 1.9, -0.07));
+  g.add(box(7.2, 1.25, 0.02, liner, 0, -1.9, -0.07));
+}, {}, [3.8, 2.6, 0]);
+
+/* 2. fixação (parafusos + buchas) */
+addComp('fixacao', [0, 0, -0.45], [0, 0, -12], g => {
+  const steel = M(0xb8bec6, { metalness: 0.9, roughness: 0.3 });
+  const nylon = M(0xf2f2e9, { roughness: 0.7 });
+  for (const x of [-3.5, 3.5]) {
+    g.add(cylZ(0.2, 3.0, steel, x, 0, -2.8));
+    g.add(cylZ(0.42, 0.15, steel, x, 0, 0.2));
+    g.add(cylZ(0.32, 2.9, nylon, x, 0, -3.2 - 0.3));
+  }
+}, {}, [4.4, 0.6, 0]);
+
+/* 3. suporte de parede */
+addComp('suporte', [0, 0, -0.45], [0, 0, -6], g => {
+  const pl = M(0xf4f6f5, { roughness: 0.6 });
+  const s = rrShape(9, 6.2, 0.8);
+  s.holes.push(circlePath(-3.5, 0, 0.25), circlePath(3.5, 0, 0.25));
+  g.add(extrude(s, 0.4, pl, 0));
+  // ganchos da trava por torção
+  for (const [x, y] of [[-2.6, 2.4], [2.6, 2.4], [-2.6, -2.4], [2.6, -2.4]]) g.add(box(1.2, 0.35, 0.35, pl, x, y, 0.55));
+  // cunha de inclinação 15° e nível de bolha
+  const bub = M(0x9be7a8, { transparent: true, opacity: 0.8 });
+  g.add(cylZ(0.35, 0.1, bub, 0, 2.2, 0.4));
+}, {}, [-4.6, -3.0, 0.4]);
+
+/* 4. carcaça traseira */
+const shellMats = [];
+function shellMat(c) { const m = M(c, { roughness: 0.42, transparent: true, opacity: 1 }); shellMats.push(m); return m; }
+addComp('traseira', [0, 0, 0], [0, 0, -3], g => {
+  const mat = shellMat(0xf3f5f4);
+  g.add(extrude(rrShape(W, H, R), 0.2, mat, 0));
+  const ring = rrShape(W, H, R); ring.holes.push(rrShape(W - 2 * T, H - 2 * T, R - T, 0, 0, THREE.Path));
+  g.add(extrude(ring, Z_SPLIT - 0.2, mat, 0.2));
+  // furo USB-C (indicado por recorte escuro)
+  g.add(box(0.3, 1.0, 0.42, M(0x111111), W / 2 - 0.05, -1.9, 0.72));
+  // bosses de fixação da PCB
+  for (const [x, y] of [[-5.1, 3.1], [5.1, 3.1], [-5.1, -3.1], [5.1, -3.1]]) g.add(cylZ(0.3, Z_PCB - 0.2, mat, x, y, 0.2));
+}, {}, [-5.4, 3.6, 1.2]);
+
+/* 5. bateria 18650 */
+addComp('bateria', [-0.8, 1.5, 1.2], [0, 0, -1.2], g => {
+  const wrap = textTex(['18650 Li-ion', '3,7 V · 3000 mAh'], { w: 1024, h: 256, bg: '#1d5fa8', fg: '#fff', font: 'bold 64px Segoe UI' });
+  const geo = new THREE.CylinderGeometry(0.9, 0.9, 6.5, 40); geo.rotateZ(Math.PI / 2);
+  g.add(mesh(geo, M(0xffffff, { map: wrap, roughness: 0.35 })));
+  const cap = new THREE.CylinderGeometry(0.35, 0.35, 0.15, 24); cap.rotateZ(Math.PI / 2);
+  g.add(mesh(cap, M(0xd0d4d8, { metalness: 0.9, roughness: 0.25 }), 3.32, 0, 0));
+  // suporte da bateria
+  const hold = M(0x1b1b1b, { roughness: 0.8 });
+  g.add(box(7.2, 2.0, 0.15, hold, 0, 0, -0.85));
+  g.add(box(0.2, 2.0, 1.4, hold, -3.55, 0, -0.2));
+  g.add(box(0.2, 2.0, 1.4, hold, 3.55, 0, -0.2));
+}, { P: [3.45, 0, 0], N: [-3.6, 0, 0] }, [0, 0, 1.1]);
+
+/* 6. carregador USB-C + proteção */
+addComp('carregador', [4.36, -1.9, 0.4], [0, 0, -1.0], g => {
+  const tex = textTex(['TP4056', 'USB-C'], { w: 256, h: 192, bg: '#1f3f8f', fg: '#cfe1ff', font: 'bold 40px Segoe UI' });
+  g.add(box(2.8, 1.7, 0.12, M(0xffffff, { map: tex }), 0, 0, 0.06));
+  g.add(box(0.5, 0.5, 0.15, M(0x111111), -0.4, 0.2, 0.2));
+  g.add(box(0.35, 0.35, 0.12, M(0x111111), 0.6, 0.3, 0.18));
+  g.add(box(0.75, 0.9, 0.32, M(0xc0c4c8, { metalness: 0.9, roughness: 0.3 }), 1.1, 0, 0.28)); // USB-C
+  g.add(box(0.12, 0.12, 0.08, M(0xff3030, { emissive: 0xff2020, emissiveIntensity: 0.6 }), 0.3, -0.6, 0.16));
+}, { BP: [-1.2, 0.6, 0.15], BN: [-1.2, 0.25, 0.15], OUTP: [-1.2, -0.25, 0.15], OUTN: [-1.2, -0.6, 0.15] }, [0, -0.4, 0.6]);
+
+/* 7. PCB principal */
+addComp('pcb', [0, 0, Z_PCB], [0, 0, 1.6], g => {
+  const tex = textTex('', {
+    w: 1024, h: 660, bg: '#0f5132', extra: (c, w, h) => {
+      c.strokeStyle = '#3e8d5f'; c.lineWidth = 6; c.lineCap = 'round';
+      const rnd = (a, b) => a + Math.random() * (b - a);
+      for (let i = 0; i < 46; i++) { c.beginPath(); let x = rnd(40, w - 40), y = rnd(40, h - 40); c.moveTo(x, y); for (let k = 0; k < 3; k++) { if (k % 2) x = rnd(40, w - 40); else y = rnd(40, h - 40); c.lineTo(x, y); } c.stroke(); }
+      c.fillStyle = '#d8c27a'; for (let i = 0; i < 140; i++) { c.beginPath(); c.arc(rnd(30, w - 30), rnd(30, h - 30), 6, 0, 7); c.fill(); }
+      c.fillStyle = '#e9f5ec'; c.font = 'bold 30px Consolas, monospace'; c.fillText('SMART AIR NODE  v1.0', 330, h - 34); c.fillText('ESP32-C3 · PIR · US · LUX · IR', 300, h - 74);
+    }
+  });
+  const s = rrShape(11.2, 7.2, 0.6);
+  for (const [x, y] of [[-5.1, 3.1], [5.1, 3.1], [-5.1, -3.1], [5.1, -3.1]]) s.holes.push(circlePath(x, y, 0.18));
+  const geo = new THREE.ExtrudeGeometry(s, { depth: PCB_T, bevelEnabled: false });
+  // mapeia UV para o retângulo
+  geo.computeBoundingBox(); const uv = geo.attributes.uv, pos = geo.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (pos.getX(i) + 5.6) / 11.2, (pos.getY(i) + 3.6) / 7.2);
+  g.add(mesh(geo, M(0xffffff, { map: tex, roughness: 0.6 })));
+}, {}, [-5.0, -3.2, 0.3]);
+
+/* 8. ESP32-C3 */
+addComp('esp', [-3.6, 1.35, Z_TOP], [0, 0, 2.6], g => {
+  g.add(box(1.8, 2.25, 0.12, M(0x111a2e), 0, 0, 0.06));
+  const shield = textTex(['ESP32-C3', 'Espressif'], { w: 256, h: 256, bg: '#c9ced3', fg: '#333', font: 'bold 42px Segoe UI' });
+  g.add(box(1.25, 1.2, 0.22, M(0xffffff, { map: shield, metalness: 0.6, roughness: 0.35 }), 0, -0.15, 0.23));
+  g.add(box(1.4, 0.45, 0.04, M(0x3a3a3a), 0, 0.85, 0.14)); // antena
+  g.add(box(0.9, 0.35, 0.3, M(0xc0c4c8, { metalness: 0.9, roughness: 0.3 }), 0, -1.05, 0.2)); // USB-C de gravação
+  const gold = M(0xd8b45a, { metalness: 0.9, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) { g.add(box(0.12, 0.12, 0.1, gold, -0.8, 0.7 - i * 0.22, 0.13)); g.add(box(0.12, 0.12, 0.1, gold, 0.8, 0.7 - i * 0.22, 0.13)); }
+}, {
+  G3: [-0.8, 0.7, 0.2], G1: [-0.8, 0.48, 0.2], G4: [-0.8, 0.26, 0.2], G5: [-0.8, 0.04, 0.2],
+  V33: [-0.8, -0.62, 0.2], GND: [-0.8, -0.84, 0.2],
+  G6: [0.8, 0.7, 0.2], G7: [0.8, 0.48, 0.2], G10: [0.8, 0.26, 0.2], G20: [0.8, 0.04, 0.2], G0: [0.8, -0.18, 0.2], G8: [0.8, -0.4, 0.2]
+}, [0, 0, 0.5]);
+
+/* 9. sensor PIR + lente Fresnel */
+addComp('pir', [0, 1.75, Z_TOP], [0, 0, 4.6], g => {
+  g.add(box(1.7, 1.7, 0.12, M(0x0e3b2a), 0, 0, 0.06));
+  g.add(cylZ(0.48, 1.0, M(0xb9bec4, { metalness: 0.85, roughness: 0.3 }), 0, 0, 0.12));
+  g.add(cylZ(0.3, 0.05, M(0x223322, { metalness: 0.2, roughness: 0.1 }), 0, 0, 1.12));
+  const dome = new THREE.SphereGeometry(1.15, 18, 9, 0, Math.PI * 2, 0, Math.PI / 2); dome.rotateX(Math.PI / 2); dome.scale(1, 1, 0.85);
+  g.add(mesh(dome, M(0xf7f7f2, { roughness: 0.25, transparent: true, opacity: 0.9, flatShading: true }), 0, 0, Z_FRONT - Z_TOP - 0.02));
+  const gold = M(0xd8b45a, { metalness: 0.9, roughness: 0.3 });
+  for (const x of [-0.5, 0, 0.5]) g.add(box(0.14, 0.14, 0.1, gold, x, -0.7, 0.14));
+}, { OUT: [-0.5, -0.72, 0.2], VCC: [0, -0.72, 0.2], GND: [0.5, -0.72, 0.2] }, [0, 0.6, 2.4]);
+
+/* 10. ultrassom */
+addComp('ultrassom', [-2.4, -1.95, Z_TOP], [0, 0, 3.6], g => {
+  const pcb = textTex('RCWL-1601', { w: 512, h: 230, bg: '#15467a', fg: '#cfe1ff', font: 'bold 40px Segoe UI' });
+  g.add(box(4.4, 2.0, 0.12, M(0xffffff, { map: pcb }), 0, 0, 0.45));
+  const can = M(0xc7ccd1, { metalness: 0.85, roughness: 0.32 });
+  const mesh2 = M(0x2a2a2a, { roughness: 0.9 });
+  for (const x of [-1.3, 1.3]) { g.add(cylZ(0.8, 1.58, can, x, 0, 0.51)); g.add(cylZ(0.66, 0.03, mesh2, x, 0, 2.09)); }
+  g.add(box(0.5, 0.5, 0.12, M(0x111111), 0, 0.5, 0.55));
+  for (const x of [-0.45, -0.15, 0.15, 0.45]) g.add(cylZ(0.06, 0.45, M(0xd8b45a, { metalness: 0.9 }), x, -0.85, 0));
+}, { VCC: [-0.45, -0.85, 0.3], TRIG: [-0.15, -0.85, 0.3], ECHO: [0.15, -0.85, 0.3], GND: [0.45, -0.85, 0.3] }, [0, 0, 2.3]);
+
+/* 11. sensor de luz BH1750 */
+addComp('luz', [4.25, 2.5, Z_TOP], [0, 0, 3.0], g => {
+  for (const [x, y] of [[-0.55, 0.45], [0.55, -0.45]]) g.add(cylZ(0.08, 1.25, M(0xd8b45a, { metalness: 0.9 }), x, y, 0));
+  g.add(box(1.4, 1.2, 0.1, M(0x1c4a8a), 0, 0, 1.3));
+  g.add(box(0.36, 0.26, 0.1, M(0x161616), 0, 0.1, 1.4));
+  g.add(box(0.12, 0.08, 0.03, M(0x88aaff, { emissive: 0x2244ff, emissiveIntensity: 0.4 }), 0, 0.1, 1.46));
+  g.add(cylZ(0.34, 0.25, M(0xffffff, { transparent: true, opacity: 0.35, roughness: 0.05 }), 0, 0.1, Z_FRONT - Z_TOP - 0.25));
+}, { VCC: [-0.6, 0.35, 1.3], GND: [-0.6, 0.1, 1.3], SCL: [-0.6, -0.15, 1.3], SDA: [-0.6, -0.4, 1.3] }, [0, 0, 1.8]);
+
+/* 12. AHT20 */
+addComp('aht20', [4.25, 0.75, Z_TOP], [0, 0, 2.6], g => {
+  g.add(box(1.1, 1.0, 0.1, M(0x5a2a82), 0, 0, 0.3));
+  g.add(box(0.3, 0.3, 0.1, M(0xd6d6d6, { metalness: 0.5 }), 0, 0, 0.4));
+  for (const y of [-0.3, 0.3]) g.add(cylZ(0.06, 0.3, M(0xd8b45a, { metalness: 0.9 }), -0.45, y, 0));
+}, { VCC: [-0.5, 0.35, 0.35], GND: [-0.5, 0.12, 0.35], SCL: [-0.5, -0.12, 0.35], SDA: [-0.5, -0.35, 0.35] }, [0, 0, 0.8]);
+
+/* 13. emissor IR (2 LEDs + MOSFET + resistores) */
+addComp('ir', [3.75, -1.95, Z_TOP], [0, 0, 3.4], g => {
+  const ledMat = M(0x6c7bd9, { transparent: true, opacity: 0.75, roughness: 0.08, emissive: 0x220044, emissiveIntensity: 0.4 });
+  const lead = M(0xcfd3d6, { metalness: 0.9, roughness: 0.3 });
+  [[-0.6, 0], [0.6, 0.26]].forEach(([x, tilt], i) => {
+    const led = new THREE.Group(); led.position.set(x, 0, 0.95); led.rotation.x = tilt;
+    led.add(cylZ(0.27, 0.12, ledMat, 0, 0, 0));       // aba
+    led.add(cylZ(0.25, 0.62, ledMat, 0, 0, 0.12));
+    const tip = new THREE.SphereGeometry(0.25, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2); tip.rotateX(Math.PI / 2);
+    led.add(mesh(tip, ledMat, 0, 0, 0.74));
+    g.add(led);
+    g.add(cylZ(0.03, 0.95, lead, x - 0.1, 0, 0)); g.add(cylZ(0.03, 0.95, lead, x + 0.1, 0, 0));
+  });
+  // MOSFET AO3400 (SOT-23) e resistores 10 Ω
+  g.add(box(0.3, 0.3, 0.12, M(0x111111), 0, 0.85, 0.06));
+  for (const x of [-0.6, 0.6]) g.add(box(0.32, 0.16, 0.1, M(0x2b2b2b), x, -0.8, 0.05));
+  // janela IR escura
+}, { A: [0, -0.85, 0.2], G: [0, 0.95, 0.15], D: [0.15, 0.85, 0.15] }, [0, 0, 2.2]);
+
+/* 14. receptor IR (aprender controle) */
+addComp('irrx', [1.6, -2.65, Z_TOP], [0, 0, 2.8], g => {
+  const lead = M(0xcfd3d6, { metalness: 0.9 });
+  for (const x of [-0.2, 0, 0.2]) g.add(cylZ(0.03, 0.7, lead, x, 0, 0));
+  g.add(box(0.62, 0.7, 0.45, M(0x151515, { roughness: 0.4 }), 0, 0, 0.92));
+  const d = new THREE.SphereGeometry(0.22, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); d.rotateX(Math.PI / 2);
+  g.add(mesh(d, M(0x151515, { roughness: 0.2 }), 0, 0, 1.14));
+}, { OUT: [-0.2, 0, 0.1], GND: [0, 0, 0.1], VCC: [0.2, 0, 0.1] }, [0, 0, 1.6]);
+
+/* 15. gestão de energia (LDO, P-MOSFET, capacitor, divisor) */
+addComp('energia', [1.4, 0.2, Z_TOP], [0, 0, 2.2], g => {
+  const cap = textTex(['1000µF', '6.3V'], { w: 256, h: 256, bg: '#1a1a1a', fg: '#ddd', font: 'bold 50px Segoe UI' });
+  g.add(cylZ(0.5, 1.15, M(0xffffff, { map: cap, roughness: 0.4 }), 0.9, 0.3, 0));
+  g.add(cylZ(0.48, 0.03, M(0xb0b4b8, { metalness: 0.9 }), 0.9, 0.3, 1.15));
+  g.add(box(0.32, 0.3, 0.12, M(0x111111), -0.5, 0.5, 0.06));   // LDO RT9080
+  g.add(box(0.3, 0.3, 0.12, M(0x111111), -0.5, -0.2, 0.06));   // AO3401
+  for (const y of [-0.7, -0.95]) g.add(box(0.3, 0.15, 0.08, M(0x2b2b2b), 0.2, y, 0.04)); // divisor 2,2M
+  for (const y of [0.1, -0.15]) g.add(box(0.25, 0.13, 0.08, M(0x8a6a3a), 0.5, y, 0.04)); // passivos
+}, { VIN: [-0.8, 0.75, 0.15], V33: [-0.8, 0.5, 0.15], GND: [-0.2, 0.95, 0.15], VSENS: [-0.2, -0.2, 0.15], EN: [-0.8, -0.2, 0.15], ADC: [0.2, -1.05, 0.15] }, [0.2, 0, 1.5]);
+
+/* 16. LED de status + botão */
+addComp('ui', [-4.7, 2.75, Z_TOP], [0, 0, 2.6], g => {
+  g.add(box(0.3, 0.3, 0.15, M(0x2e7dff, { emissive: 0x2e7dff, emissiveIntensity: 1.2 }), 0, 0, 0.08));
+  g.add(cylZ(0.15, Z_FRONT - Z_TOP - 0.15, M(0xcfe6ff, { transparent: true, opacity: 0.55, roughness: 0.05 }), 0, 0, 0.15)); // guia de luz
+  g.add(box(0.6, 0.6, 0.35, M(0x2b2b2b), 0, -1.1, 0.18));
+  g.add(cylZ(0.17, 0.25, M(0x888888), 0, -1.1, 0.35));
+}, { LED: [0.2, 0, 0.1], BTN: [0.3, -1.1, 0.1] }, [0, 0, 1.2]);
+
+/* 17. carcaça frontal */
+addComp('frontal', [0, 0, 0], [0, 0, 8.5], g => {
+  const mat = shellMat(0xfbfcfb);
+  const ring = rrShape(W, H, R); ring.holes.push(rrShape(W - 2 * T, H - 2 * T, R - T, 0, 0, THREE.Path));
+  g.add(extrude(ring, Z_FRONT - T - Z_SPLIT, mat, Z_SPLIT));
+  const plate = rrShape(W, H, R);
+  plate.holes.push(circlePath(0, 1.75, 1.16), circlePath(-3.7, -1.95, 0.82), circlePath(-1.1, -1.95, 0.82),
+    circlePath(4.25, 2.6, 0.34), circlePath(-4.7, 2.75, 0.16), rrShape(2.8, 1.5, 0.3, 3.75, -1.85, THREE.Path));
+  for (let i = 0; i < 4; i++) plate.holes.push(rrShape(1.1, 0.14, 0.06, 4.25, 1.15 - i * 0.3, THREE.Path));
+  g.add(extrude(plate, T, mat, Z_FRONT - T));
+  // janela IR (acrílico escuro que deixa passar 940 nm)
+  const win = mesh(new THREE.ShapeGeometry(rrShape(2.8, 1.5, 0.3, 3.75, -1.85)), M(0x24101a, { transparent: true, opacity: 0.82, roughness: 0.05, metalness: 0.2 }), 0, 0, Z_FRONT - 0.1);
+  g.add(win);
+  // logotipo
+  const logo = textTex('', {
+    w: 512, h: 128, bg: null, extra: (c) => {
+      c.font = 'bold 74px Segoe UI'; c.textBaseline = 'middle'; c.fillStyle = '#1f5e3b'; c.fillText('Smart', 8, 66);
+      const w = c.measureText('Smart ').width; c.fillStyle = '#5b9bd5'; c.fillText('air', 8 + w, 66);
+    }
+  });
+  g.add(mesh(new THREE.PlaneGeometry(3.4, 0.85), new THREE.MeshBasicMaterial({ map: logo, transparent: true }), -2.4, 3.05, Z_FRONT + 0.01));
+  // botão lateral
+  g.add(box(0.2, 0.9, 0.5, M(0x9aa3a0), -W / 2 - 0.05, -0.2, 3.1));
+}, {}, [-6.4, -3.9, 4.2]);
+
+
+/* 17b. CAIXA IMPRESSA EM 3D (protótipo, PETG preto) — mesmas cotas de caixa-3d/smartair_caixa.scad */
+const layerTex = (() => {
+  const c = document.createElement('canvas'); c.width = 8; c.height = 64; const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#808080' : '#d0d0d0'; g.fillRect(0, i * 8, 8, 8); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 6.25); return t;
+})();
+function printMat(c = 0x1c1c1e) { const m = shellMat(c); m.roughness = 0.78; m.bumpMap = layerTex; m.bumpScale = 0.6; return m; }
+const PT = 0.24, PCLR = 0.025, LIP_T = 0.16, LIP_H = 0.7;
+function frontPlateShape() {
+  const plate = rrShape(W, H, R);
+  plate.holes.push(circlePath(0, 1.75, 1.17), circlePath(-3.7, -1.95, 0.83), circlePath(-1.1, -1.95, 0.83),
+    circlePath(4.25, 2.6, 0.35), circlePath(-4.7, 2.75, 0.16), rrShape(2.8, 1.5, 0.3, 3.75, -1.85, THREE.Path));
+  for (let i = 0; i < 4; i++) plate.holes.push(rrShape(1.1, 0.14, 0.06, 4.25, 1.15 - i * 0.3, THREE.Path));
+  return plate;
+}
+const holeMat = M(0x030303, { roughness: 1 });
+addComp('caixa_base', [0, 0, 0], [0, 0, -3], g => {
+  const mat = printMat();
+  g.add(extrude(rrShape(W, H, R), 0.2, mat, 0));
+  const ring = rrShape(W, H, R); ring.holes.push(rrShape(W - 2 * PT, H - 2 * PT, R - PT, 0, 0, THREE.Path));
+  g.add(extrude(ring, Z_SPLIT - 0.2, mat, 0.2));
+  // postes M2.5 da placa perfurada 110 x 70
+  for (const [x, y] of [[-5.1, 3.1], [5.1, 3.1], [-5.1, -3.1], [5.1, -3.1]]) { g.add(cylZ(0.3, Z_PCB - 0.2, mat, x, y, 0.2)); g.add(cylZ(0.11, 0.02, holeMat, x, y, Z_PCB)); }
+  // berço da 18650 (trilhos + paredes com contato de mola)
+  for (const s of [-1, 1]) g.add(box(7.0, 0.16, 1.0, mat, -0.8, 1.5 + s * 1.05, 0.7));
+  for (const s of [-1, 1]) { g.add(box(0.2, 2.0, 1.6, mat, -0.8 + s * 3.7, 1.5, 1.0)); g.add(box(0.05, 1.2, 1.4, M(0xc9ccd0, { metalness: 0.9, roughness: 0.3 }), -0.8 + s * 3.56, 1.5, 1.05)); }
+  // canaletas do TP4056
+  for (const s of [-1, 1]) g.add(box(2.8, 0.2, 0.46, mat, 4.36, -1.9 + s * 0.95, 0.43));
+  // janelas das travas (lados longos)
+  for (const x of [-3.2, 3.2]) for (const s of [-1, 1]) g.add(box(1.1, 0.26, 0.32, holeMat, x, s * (H / 2 - 0.12), 1.7));
+  // USB-C e chave liga/desliga (lado direito)
+  g.add(box(0.26, 1.0, 0.42, holeMat, W / 2 - 0.12, -1.9, 0.72));
+  g.add(box(0.26, 0.92, 0.46, holeMat, W / 2 - 0.12, 0.8, 1.2));
+  g.add(box(0.12, 0.3, 0.3, M(0x2a2a2a), W / 2 + 0.03, 0.95, 1.2));
+  // fechaduras para o suporte (vistas por trás) e ventilação
+  for (const x of [-3.5, 3.5]) { g.add(cylZ(0.43, 0.02, holeMat, x, 0.4, -0.012)); g.add(box(0.42, 0.8, 0.02, holeMat, x, 0, -0.002)); g.add(cylZ(0.21, 0.02, holeMat, x, -0.4, -0.012)); }
+  for (let i = 0; i < 4; i++) g.add(box(1.4, 0.16, 0.02, holeMat, 4.2, 0.4 + i * 0.4, -0.002));
+  const back = textTex(['SMART AIR NODE - PROTÓTIPO v1', 'PETG · não expor ao sol'], { w: 1024, h: 160, bg: null, fg: '#4a4a4e', font: 'bold 44px Segoe UI' });
+  const pl = mesh(new THREE.PlaneGeometry(7, 1.1), new THREE.MeshBasicMaterial({ map: back, transparent: true }), 0, -2.9, -0.015); pl.rotation.y = Math.PI; g.add(pl);
+}, {}, [-5.6, -3.6, 1.0]);
+addComp('caixa_tampa', [0, 0, 0], [0, 0, 9.5], g => {
+  const mat = printMat();
+  const ring = rrShape(W, H, R); ring.holes.push(rrShape(W - 2 * PT, H - 2 * PT, R - PT, 0, 0, THREE.Path));
+  g.add(extrude(ring, Z_FRONT - PT - Z_SPLIT, mat, Z_SPLIT));
+  g.add(extrude(frontPlateShape(), PT, mat, Z_FRONT - PT));
+  // aba interna que entra na base
+  const lw = W - 2 * PT - 2 * PCLR, lh = H - 2 * PT - 2 * PCLR;
+  const lip = rrShape(lw, lh, R - PT); lip.holes.push(rrShape(lw - 2 * LIP_T, lh - 2 * LIP_T, R - PT - LIP_T, 0, 0, THREE.Path));
+  g.add(extrude(lip, LIP_H + 0.4, mat, Z_SPLIT - LIP_H));
+  // 4 travas: braço flexível + gancho
+  for (const x of [-3.2, 3.2]) for (const s of [-1, 1]) {
+    g.add(box(1.0, 0.16, 1.84, mat, x, s * (lh / 2 - 0.08), 1.56 + 0.92));
+    g.add(box(1.0, 0.14, 0.28, M(0x2c2c30, { roughness: 0.7 }), x, s * (lh / 2 + 0.07), 1.7));
+  }
+  // anel do PIR e janela IR em acrílico fumê
+  const ringPir = new THREE.Shape(); ringPir.absarc(0, 1.75, 1.35, 0, Math.PI * 2); ringPir.holes.push(circlePath(0, 1.75, 1.17));
+  g.add(extrude(ringPir, 0.4, mat, Z_FRONT - PT - 0.4));
+  g.add(mesh(new THREE.ShapeGeometry(rrShape(2.8, 1.5, 0.3, 3.75, -1.85)), M(0x140a10, { transparent: true, opacity: 0.85, roughness: 0.05, metalness: 0.3 }), 0, 0, Z_FRONT - 0.12));
+  // gravações
+  const logo = textTex('', { w: 512, h: 128, bg: null, extra: c => { c.font = 'bold 72px Segoe UI'; c.textBaseline = 'middle'; c.fillStyle = '#4b4b50'; c.fillText('Smart air', 8, 66); } });
+  g.add(mesh(new THREE.PlaneGeometry(3.4, 0.85), new THREE.MeshBasicMaterial({ map: logo, transparent: true }), -2.4, 3.05, Z_FRONT + 0.01));
+  const us = textTex('((  US  ))', { w: 256, h: 64, bg: null, fg: '#4b4b50', font: 'bold 34px Segoe UI' });
+  g.add(mesh(new THREE.PlaneGeometry(1.4, 0.35), new THREE.MeshBasicMaterial({ map: us, transparent: true }), -2.4, -3.1, Z_FRONT + 0.01));
+}, {}, [6.2, -3.9, 4.4]);
+comps.caixa_base.group.visible = comps.caixa_tampa.group.visible = false;
+
+/* ---------------- fios (conexões) ---------------- */
+const NETS = {
+  VBAT: { c: '#ff8c1a', n: 'VBAT (3,0–4,2 V)', d: 'Tensão direta da bateria 18650 — alimenta o LDO e os LEDs IR.' },
+  V33: { c: '#e53935', n: '3V3', d: 'Saída do regulador RT9080 (Iq 2 µA). Sempre ligada: ESP32-C3 e PIR.' },
+  VSENS: { c: '#ff5fa2', n: 'VSENS (3V3 chaveado)', d: '3V3 através do P-MOSFET AO3401. Só ligado ~0,35 s quando a lógica precisa ler ultrassom/luz/temperatura.' },
+  GND: { c: '#7a8580', n: 'GND', d: 'Terra comum.' },
+  PIR: { c: '#ffd400', n: 'PIR_OUT → GPIO3', d: 'Saída digital do PIR. GPIO3 é pino RTC: acorda o ESP32-C3 do sono profundo.' },
+  TRIG: { c: '#2ecc71', n: 'US_TRIG → GPIO1', d: 'Pulso de 10 µs dispara um ping de 40 kHz.' },
+  ECHO: { c: '#a3e635', n: 'US_ECHO → GPIO4', d: 'Largura do pulso = tempo de ida e volta. Distância = t × 343 m/s ÷ 2.' },
+  SDA: { c: '#3b82f6', n: 'I2C SDA → GPIO6', d: 'Barramento I²C compartilhado (BH1750 0x23, AHT20 0x38). Pull-up 4,7 kΩ para VSENS.' },
+  SCL: { c: '#22d3ee', n: 'I2C SCL → GPIO7', d: 'Clock I²C 100 kHz.' },
+  IRTX: { c: '#d946ef', n: 'IR_TX → GPIO10', d: 'Sinal do periférico RMT (portadora 38 kHz) no gate do AO3400 via 100 Ω.' },
+  IRRX: { c: '#14b8a6', n: 'IR_RX → GPIO20', d: 'Receptor VS1838B, usado só no modo "aprender controle".' },
+  EN: { c: '#f5f5f5', n: 'SENS_EN → GPIO5', d: 'Nível baixo liga o P-MOSFET e energiza a trilha VSENS.' },
+  ADC: { c: '#9ca3af', n: 'VBAT_ADC → GPIO0', d: 'Divisor 2,2 MΩ/2,2 MΩ para medir a bateria (~0,9 µA).' },
+  LED: { c: '#60a5fa', n: 'LED_STATUS ← GPIO8', d: 'LED de status, pisca só em eventos e no modo instalador.' },
+};
+const WIRES = [
+  ['bateria', 'P', 'carregador', 'BP', 'VBAT'], ['bateria', 'N', 'carregador', 'BN', 'GND'],
+  ['carregador', 'OUTP', 'energia', 'VIN', 'VBAT'], ['carregador', 'OUTN', 'energia', 'GND', 'GND'],
+  ['energia', 'V33', 'esp', 'V33', 'V33'], ['energia', 'GND', 'esp', 'GND', 'GND'],
+  ['energia', 'V33', 'pir', 'VCC', 'V33'], ['pir', 'OUT', 'esp', 'G3', 'PIR'], ['pir', 'GND', 'energia', 'GND', 'GND'],
+  ['energia', 'VSENS', 'ultrassom', 'VCC', 'VSENS'], ['esp', 'G1', 'ultrassom', 'TRIG', 'TRIG'],
+  ['ultrassom', 'ECHO', 'esp', 'G4', 'ECHO'], ['ultrassom', 'GND', 'energia', 'GND', 'GND'],
+  ['esp', 'G5', 'energia', 'EN', 'EN'], ['energia', 'ADC', 'esp', 'G0', 'ADC'],
+  ['energia', 'VSENS', 'luz', 'VCC', 'VSENS'], ['esp', 'G6', 'luz', 'SDA', 'SDA'], ['esp', 'G7', 'luz', 'SCL', 'SCL'],
+  ['luz', 'SDA', 'aht20', 'SDA', 'SDA'], ['luz', 'SCL', 'aht20', 'SCL', 'SCL'], ['energia', 'VSENS', 'aht20', 'VCC', 'VSENS'],
+  ['energia', 'VIN', 'ir', 'A', 'VBAT'], ['esp', 'G10', 'ir', 'G', 'IRTX'],
+  ['energia', 'VSENS', 'irrx', 'VCC', 'VSENS'], ['irrx', 'OUT', 'esp', 'G20', 'IRRX'],
+  ['esp', 'G8', 'ui', 'LED', 'LED'],
+];
+const wireGroup = new THREE.Group(); root.add(wireGroup);
+const wireMeshes = WIRES.map(w => {
+  const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: NETS[w[4]].c, roughness: 0.4, emissive: NETS[w[4]].c, emissiveIntensity: 0.15 }));
+  m.userData.net = w[4]; m.userData.wire = w; wireGroup.add(m); return m;
+});
+function pinWorld(id, pin) {
+  const c = comps[id]; const p = new THREE.Vector3(...(c.pins[pin] || [0, 0, 0]));
+  c.group.updateMatrixWorld(); return c.group.localToWorld(p);
+}
+function updateWires() {
+  for (const m of wireMeshes) {
+    const [a, ap, b, bp] = m.userData.wire;
+    const p0 = pinWorld(a, ap), p3 = pinWorld(b, bp);
+    const lift = 0.6 + p0.distanceTo(p3) * 0.12;
+    const p1 = p0.clone().lerp(p3, 0.3); p1.z = Math.max(p0.z, p3.z) + lift;
+    const p2 = p0.clone().lerp(p3, 0.7); p2.z = Math.max(p0.z, p3.z) + lift;
+    const curve = new THREE.CatmullRomCurve3([p0, p1, p2, p3]);
+    m.geometry.dispose(); m.geometry = new THREE.TubeGeometry(curve, 24, 0.045, 6, false);
+  }
+}
+
+/* ---------------- dados de cada componente ---------------- */
+const INFO = {
+  esp: {
+    n: 'ESP32-C3', part: 'SuperMini (protótipo) · ESP32-C3-MINI-1 (produção)', cat: 'Controle',
+    d: 'Microcontrolador RISC-V de 160 MHz com Wi-Fi, BLE 5 e ESP-NOW. Roda a máquina de estados (VAZIO → CONFIRMANDO → OCUPADO → CONTAGEM) e passa mais de 99,9 % do tempo em sono profundo, acordado pelo PIR ou por timer.',
+    specs: [['Sono profundo', '~5 µA (chip)'], ['Acordado (CPU 80 MHz)', '~20–25 mA'], ['Pico de rádio', '~300 mA (TX)'], ['Wake-up por GPIO', 'GPIO0–GPIO5'], ['IR', 'periférico RMT (38 kHz)'], ['Memória', '400 KB SRAM · 4 MB flash']],
+    pins: [['GPIO3', 'PIR_OUT (wake)', 'PIR'], ['GPIO1', 'US_TRIG', 'TRIG'], ['GPIO4', 'US_ECHO', 'ECHO'], ['GPIO5', 'SENS_EN (gate AO3401)', 'EN'], ['GPIO6', 'I2C SDA', 'SDA'], ['GPIO7', 'I2C SCL', 'SCL'], ['GPIO10', 'IR_TX (gate AO3400)', 'IRTX'], ['GPIO20', 'IR_RX', 'IRRX'], ['GPIO0', 'VBAT_ADC', 'ADC'], ['GPIO8', 'LED status', 'LED'], ['GPIO9', 'Botão BOOT/config', ''], ['3V3 / GND', 'saída do LDO', 'V33']],
+    cost: 'R$ 18–25 (SuperMini) · ~R$ 12 em lote', pow: '~5 µA dormindo',
+    note: 'Na placa SuperMini, retire o LED vermelho de "power" (consome ~1 mA) e alimente pelo pino 3V3 a partir do RT9080.'
+  },
+  pir: {
+    n: 'Sensor PIR + lente Fresnel', part: 'Panasonic EKMB long distance (produção) · HC-SR501/AM312 (protótipo)', cat: 'Sensor',
+    d: 'Infravermelho passivo: detecta a variação de calor de corpos em movimento. É o gatilho principal e o único sensor sempre ligado — sua saída acorda o ESP32-C3. A lente Fresnel em domo divide a sala em zonas e dá ~100° de cobertura até 12 m.',
+    specs: [['Alcance', 'até 12 m (EKMB long distance) · 7 m (HC-SR501)'], ['Ângulo', '~100° horizontal'], ['Consumo', '1–6 µA (EKMB) · ~50 µA (HC-SR501 a 3,3 V)'], ['Saída', 'digital, nível alto ~2 s após movimento'], ['Ponto fraco', 'pessoa totalmente parada']],
+    pins: [['OUT', 'GPIO3 (pull-down 100 kΩ)', 'PIR'], ['VCC', '3V3 (sempre ligado)', 'V33'], ['GND', 'GND', 'GND']],
+    cost: 'R$ 10 (HC-SR501) · R$ 18–40 (EKMB)', pow: '≈ 6 µA contínuo',
+    note: 'HC-SR501 precisa da modificação 3,3 V (alimentar após o regulador interno). Não aponte para janelas com sol ou para a saída de ar do AC.'
+  },
+  ultrassom: {
+    n: 'Sensor ultrassônico', part: 'RCWL-1601 / HC-SR04P (versão 3,3 V)', cat: 'Sensor',
+    d: 'Emite pings de 40 kHz e mede o eco. Na instalação grava a distância da sala vazia (linha de base). Um eco mais curto (>15 cm) ou variação entre pings (respiração, micro-movimentos) indica alguém na zona do cone — mesmo parado. Usado para confirmar entrada e durante a contagem regressiva.',
+    specs: [['Faixa', '2–450 cm'], ['Cone', '~15° (meio-ângulo)'], ['Consumo ativo', '~2–3 mA'], ['Uso', 'rajada de 5 pings ≈ 0,35 s'], ['Frequência', 'a cada 30 s na contagem · 120 s ocupado'], ['Alimentação', 'VSENS (chaveada, 0 µA em repouso)']],
+    pins: [['VCC', 'VSENS', 'VSENS'], ['TRIG', 'GPIO1', 'TRIG'], ['ECHO', 'GPIO4 (3,3 V, sem divisor)', 'ECHO'], ['GND', 'GND', 'GND']],
+    cost: 'R$ 12–15', pow: '≈ 0,8 mAh/dia',
+    note: 'Use versão 3,3 V. O HC-SR04 comum exige 5 V e um conversor boost sempre ligado, o que destrói a autonomia.'
+  },
+  luz: {
+    n: 'Sensor de luminosidade', part: 'BH1750 (GY-302), I²C 0x23', cat: 'Sensor',
+    d: 'Mede iluminância em lux. Um salto rápido (lâmpadas acesas) junto com PIR confirma entrada. Luz apagada sem movimento ativa o "desligamento rápido" (2 min em vez de 10). Luz acesa sozinha NÃO é tratada como presença, porque as pessoas esquecem a luz acesa.',
+    specs: [['Faixa', '1–65 535 lux'], ['Consumo', '0,12 mA medindo (120 ms) · 1 µA em espera'], ['Leitura', 'a cada 5 min (timer) e em eventos'], ['Barramento', 'I²C 100 kHz']],
+    pins: [['VCC', 'VSENS', 'VSENS'], ['GND', 'GND', 'GND'], ['SCL', 'GPIO7', 'SCL'], ['SDA', 'GPIO6', 'SDA']],
+    cost: 'R$ 10–15', pow: '≈ 0,3 mAh/dia',
+    note: 'Fica atrás de uma janela translúcida de 7 mm na frente da carcaça.'
+  },
+  aht20: {
+    n: 'Temperatura e umidade (opcional)', part: 'AHT20, I²C 0x38', cat: 'Sensor',
+    d: 'O IR não tem confirmação: o AC pode não ter recebido o comando. 6 min após LIGAR a temperatura deve cair; após DESLIGAR não deve continuar caindo. Se não bater, o nó reenvia o comando e gera um alerta "AC não responde". Também alimenta o dashboard (conforto térmico).',
+    specs: [['Precisão', '±0,3 °C · ±2 %UR'], ['Consumo', '0,25 µA em espera'], ['Uso', 'verificação pós-comando + telemetria']],
+    pins: [['VCC', 'VSENS', 'VSENS'], ['GND', 'GND', 'GND'], ['SCL', 'GPIO7', 'SCL'], ['SDA', 'GPIO6', 'SDA']],
+    cost: 'R$ 8–10', pow: 'desprezível'
+  },
+  ir: {
+    n: 'Emissor infravermelho', part: '2 × TSAL6200 (940 nm) + MOSFET AO3400 + 2 × 10 Ω', cat: 'Atuação',
+    d: 'Envia ao AC o quadro completo do protocolo do fabricante (modo, temperatura, ventilação, liga/desliga) com a biblioteca IRremoteESP8266. Dois LEDs: um reto para a evaporadora e outro inclinado 15° para baixo, para tolerar desalinhamento. Ficam atrás de uma janela de acrílico escuro que deixa o IR passar.',
+    specs: [['Comprimento de onda', '940 nm'], ['Corrente de pico', '≈ 220 mA por LED (pulsado)'], ['Portadora', '38 kHz, ciclo 1/3'], ['Alcance', '≥ 10 m em linha de visada'], ['Duração', '~0,15 s por quadro, 3 repetições'], ['Alimentação', 'direto da bateria (VBAT)']],
+    pins: [['Anodos', 'VBAT via 10 Ω cada', 'VBAT'], ['Catodos', 'dreno do AO3400', ''], ['Gate AO3400', 'GPIO10 via 100 Ω (pull-down 100 kΩ)', 'IRTX'], ['Fonte AO3400', 'GND', 'GND']],
+    cost: 'R$ 7', pow: '≈ 12 µAh por comando'
+  },
+  irrx: {
+    n: 'Receptor IR', part: 'VS1838B / TSOP38238', cat: 'Atuação',
+    d: 'Usado apenas na instalação, no modo "Aprender controle": o instalador aponta o controle original e aperta LIGAR e DESLIGAR; o nó identifica o protocolo ou grava o sinal bruto. Fica sem energia no uso normal (consumiria ~0,5 mA se ligado).',
+    specs: [['Portadora', '38 kHz'], ['Consumo', '0,4–1,5 mA (só na instalação)']],
+    pins: [['OUT', 'GPIO20', 'IRRX'], ['VCC', 'VSENS', 'VSENS'], ['GND', 'GND', 'GND']],
+    cost: 'R$ 2', pow: '0 µA no uso normal'
+  },
+  energia: {
+    n: 'Gestão de energia', part: 'LDO RT9080-33 · P-MOSFET AO3401 · capacitor 1000 µF · divisor 2,2 MΩ', cat: 'Energia',
+    d: 'O RT9080 gera 3,3 V com apenas 2 µA de consumo próprio e suporta 600 mA nos picos de rádio. O AO3401 corta a energia dos sensores que não precisam ficar ligados (trilha VSENS). O capacitor de 1000 µF segura os picos dos LEDs IR e do rádio. O divisor mede a bateria.',
+    specs: [['LDO', 'RT9080, Iq 2 µA, 600 mA, dropout ~0,3 V'], ['Chave de sensores', 'AO3401, Rds(on) ~50 mΩ'], ['Capacitor', '1000 µF / 6,3 V low-ESR'], ['Divisor de bateria', '2,2 MΩ + 2,2 MΩ + 100 nF']],
+    pins: [['VIN', 'VBAT (saída da proteção)', 'VBAT'], ['3V3', 'ESP32-C3, PIR', 'V33'], ['VSENS', 'ultrassom, luz, AHT20, receptor IR', 'VSENS'], ['Gate AO3401', 'GPIO5', 'EN'], ['Ponto médio do divisor', 'GPIO0 (ADC)', 'ADC']],
+    cost: 'R$ 6', pow: '≈ 3 µA'
+  },
+  bateria: {
+    n: 'Bateria 18650', part: 'Li-ion 3,7 V · 3000–3500 mAh (Samsung 30Q, LG MJ1, Molicel)', cat: 'Energia',
+    d: 'Uma célula recarregável entrega picos de corrente para o IR e o rádio sem queda de tensão. Consumo estimado ≈ 4 mAh/dia incluindo autodescarga → cerca de 20 meses de autonomia na versão de produção (≥ 12 meses no protótipo).',
+    specs: [['Tensão', '3,0–4,2 V'], ['Capacidade útil', '~85 % (corte em 3,4 V)'], ['Autonomia estimada', '14–21 meses'], ['Recarga', 'USB-C, ~4 h'], ['Alerta', 'a 20 % (≈ 2–3 meses antes do fim)']],
+    pins: [['+', 'B+ do carregador/proteção', 'VBAT'], ['−', 'B− do carregador/proteção', 'GND']],
+    cost: 'R$ 30–40 (varejo) · ~R$ 20 em lote', pow: '—',
+    note: 'Use apenas células de marca com proteção (DW01 + MOSFET). Células "genéricas" de 9900 mAh são falsificadas.'
+  },
+  carregador: {
+    n: 'Carregador USB-C + proteção', part: 'TP4056 + DW01 (protótipo) · MCP73831 (produção)', cat: 'Energia',
+    d: 'Recarrega a 18650 por USB-C (5 V) e protege contra sobrecarga, descarga profunda e curto. O conector fica na base da carcaça: para recarregar, destrave o dispositivo do suporte e conecte qualquer carregador de celular.',
+    specs: [['Corrente de carga', '500 mA–1 A'], ['Corte de descarga', '2,5 V (proteção) · 3,4 V (firmware)'], ['Indicador', 'LED de carga']],
+    pins: [['B+/B−', 'bateria', 'VBAT'], ['OUT+/OUT−', 'VIN do LDO / LEDs IR', 'VBAT'], ['USB-C', 'entrada 5 V', '']],
+    cost: 'R$ 5–6', pow: '< 2 µA'
+  },
+  pcb: {
+    n: 'Placa de circuito (PCB)', part: 'Perfurada 7×9 (protótipo) · carrier 2 camadas (piloto) · 4 camadas SMT (produção)', cat: 'Mecânica',
+    d: 'No protótipo de bancada usa-se protoboard e jumpers Dupont. Para campo, os módulos vão soldados em placa perfurada com fios rígidos curtos (jumpers Dupont soltam com o tempo). No piloto, uma PCB "carrier" recebe os módulos em barras de pinos; na produção uma PCB única com tudo soldado por SMT.',
+    specs: [['Dimensões', '112 × 72 mm'], ['Fixação', '4 bosses M2'], ['Custo', 'US$ 2 (carrier, 20 un.) · R$ 15 com montagem SMT em lote']],
+    pins: [], cost: 'R$ 10–15', pow: '—'
+  },
+  ui: {
+    n: 'LED de status + botão', part: 'LED azul (GPIO8) · botão BOOT (GPIO9)', cat: 'Interface',
+    d: 'O LED pisca rapidamente a cada detecção no modo instalador (teste de caminhada) e dá um piscar curto ao enviar comandos. Fora disso fica apagado para economizar. O botão lateral: 1 toque = teste LIGAR/DESLIGAR; 3 s = modo instalador (BLE ativo para o app); 10 s = reset de fábrica.',
+    specs: [['LED', 'pulso de 20 ms'], ['Guia de luz', 'policarbonato transparente']],
+    pins: [['LED', 'GPIO8 (ativo em nível baixo)', 'LED'], ['Botão', 'GPIO9 (pull-up interno)', '']],
+    cost: 'R$ 1', pow: 'desprezível'
+  },
+  caixa_tampa: {
+    n: 'Tampa impressa 3D (preta)', part: 'PETG preto · caixa-3d/tampa.stl · 120 × 80 × 22 mm + aba de 7 mm', cat: 'Caixa 3D',
+    d: 'Frente da caixa do protótipo. Furos do domo do PIR (Ø23,4), dos dois transdutores do ultrassom (Ø16,6, 26 mm entre centros), janela de luz (Ø7), guia do LED (Ø3,2), janela IR com assento para acrílico fumê 32 × 19 × 2 mm e 4 aletas de ventilação. A aba interna de 7 mm entra na base e leva as <b>4 travas de encaixe</b> (braço de 18 mm, gancho de 1,4 mm) que estalam nas janelas da base.',
+    specs: [['Material', 'PETG preto (ASA se pegar sol)'], ['Camada', '0,2 mm · bico 0,4'], ['Paredes', '6 perímetros (2,4 mm)'], ['Preenchimento', '20 % gyroid'], ['Orientação', 'frente para baixo, sem suporte'], ['Massa / tempo', '≈ 45 g · ≈ 3 h 30'], ['Folga de encaixe', '0,25 mm (parâmetro clr no .scad)']],
+    pins: [['Abrir', 'apertar os 2 ganchos de um lado pelas janelas e puxar'], ['Fechar', 'alinhar e empurrar até o clique']],
+    cost: '≈ R$ 6 de filamento', pow: '—',
+    note: 'Imprima antes um teste só da trava. Se ficar dura, aumente clr para 0,3; se ficar folgada, reduza clr. <a href="caixa-3d/tampa.stl" style="color:#7cc4ff">Baixar tampa.stl</a>'
+  },
+  caixa_base: {
+    n: 'Base impressa 3D (preta)', part: 'PETG preto · caixa-3d/base.stl · 120 × 80 × 22 mm', cat: 'Caixa 3D',
+    d: 'Fundo da caixa do protótipo. Por dentro: 4 postes para a placa perfurada (110 × 70 mm, parafusos M2,5 × 8 autoatarraxantes), berço da 18650 com paredes para contatos de mola e rasgos para velcro, e canaletas onde o TP4056 desliza. Nas laterais: 4 janelas das travas, recorte do USB-C e da chave liga/desliga. Atrás: 2 fechaduras (keyhole) para pendurar no suporte e ventilação para o AHT20.',
+    specs: [['Material', 'PETG preto'], ['Orientação', 'fundo na mesa, sem suporte'], ['Massa / tempo', '≈ 45 g · ≈ 3 h'], ['Ferragens', '4 × M2,5 × 8 · 2 contatos de mola 18650 · chave SS12D00 · velcro 10 mm']],
+    pins: [['Lado direito', 'USB-C (recarga) e chave liga/desliga'], ['Fundo', 'fechaduras a 70 mm entre centros']],
+    cost: '≈ R$ 6 de filamento', pow: '—',
+    note: 'Instalação: o suporte fica colado/parafusado na parede; a caixa entra pelos pinos-cogumelo do suporte e desce 8 mm até travar. <a href="caixa-3d/base.stl" style="color:#7cc4ff">base.stl</a> · <a href="caixa-3d/suporte.stl" style="color:#7cc4ff">suporte.stl</a> · <a href="caixa-3d/smartair_caixa.scad" style="color:#7cc4ff">.scad paramétrico</a>'
+  },
+  frontal: {
+    n: 'Carcaça frontal', part: 'PETG impresso 3D (protótipo) · PC/ABS injetado (produção)', cat: 'Mecânica',
+    d: 'Frente com recortes para o domo Fresnel do PIR, os dois transdutores ultrassônicos, a janela do sensor de luz, a janela IR em acrílico escuro, a guia de luz do LED e as aletas de ventilação do AHT20. Cor branca fosca para combinar com paredes e evaporadoras.',
+    specs: [['Dimensões totais', '120 × 80 × 42 mm'], ['Massa', '~180 g com bateria'], ['Proteção', 'IP20 (uso interno)']],
+    pins: [], cost: 'R$ 20 (impressão) · ~R$ 12 injetada', pow: '—'
+  },
+  traseira: {
+    n: 'Carcaça traseira', part: 'PETG / PC-ABS', cat: 'Mecânica',
+    d: 'Aloja a bateria e o carregador, com abertura para o USB-C na base. Na parte de trás tem os rasgos da trava por torção que encaixam no suporte de parede: girar 15° para soltar o dispositivo e recarregar, sem mexer no suporte.',
+    specs: [['Trava', 'baioneta 4 pontos + parafuso antifurto opcional']],
+    pins: [], cost: 'incluso na carcaça', pow: '—'
+  },
+  suporte: {
+    n: 'Suporte de parede', part: 'Placa 90 × 62 mm com cunha de 15° e nível de bolha', cat: 'Fixação',
+    d: 'Fica permanentemente na parede. A cunha inclina o sensor 15° para baixo para o PIR cobrir as carteiras e o ultrassom mirar a zona central. O nível de bolha garante o alinhamento horizontal do feixe IR. Aceita fita VHB ou 2 parafusos.',
+    specs: [['Altura de instalação', '2,2–2,5 m'], ['Inclinação', '15–20° para baixo'], ['Furos', '2 × Ø5 mm, distância 70 mm']],
+    pins: [], cost: 'R$ 3', pow: '—'
+  },
+  vhb: {
+    n: 'Fita dupla-face VHB', part: '3M VHB 4910 / RP45 (2 tiras 70 × 12 mm)', cat: 'Fixação',
+    d: 'Espuma acrílica de alta resistência usada em fachadas. Duas tiras seguram vários quilos em superfície lisa e limpa — o dispositivo pesa < 200 g. Limpar com álcool isopropílico, pressionar 30 s; resistência total em 72 h.',
+    specs: [['Superfícies', 'pintura lisa, azulejo, vidro, metal, MDF'], ['Evitar', 'parede porosa, reboco solto, pintura descascando'], ['Temperatura', '−10 a 90 °C']],
+    pins: [], cost: 'R$ 3–5', pow: '—'
+  },
+  fixacao: {
+    n: 'Parafusos + buchas', part: '2 × parafuso 4 × 30 mm + bucha nylon 6 mm', cat: 'Fixação',
+    d: 'Alternativa à fita em paredes porosas, de reboco fraco ou quando o cliente exige fixação permanente. Furar com broca 6 mm, inserir a bucha e parafusar o suporte.',
+    specs: [['Broca', '6 mm (alvenaria)'], ['Tempo', '+3 min por sala']],
+    pins: [], cost: 'R$ 1', pow: '—'
+  },
+  parede: {
+    n: 'Parede da sala', part: 'Contexto de instalação', cat: 'Contexto',
+    d: 'O dispositivo fica na parede oposta à evaporadora, a 2,2–2,5 m de altura, com linha de visada até o receptor IR do AC. Veja a simulação para a posição na sala e os cones de cobertura.',
+    specs: [], pins: [], cost: '—', pow: '—'
+  }
+};
+const ORDER = [['Controle', ['esp']], ['Sensores', ['pir', 'ultrassom', 'luz', 'aht20']], ['Atuação', ['ir', 'irrx']], ['Energia', ['bateria', 'carregador', 'energia']], ['Interface e placa', ['ui', 'pcb']], ['Mecânica e fixação', ['frontal', 'traseira', 'caixa_tampa', 'caixa_base', 'suporte', 'vhb', 'fixacao']]];
+const NUM = {}; let k = 1; ORDER.forEach(([, ids]) => ids.forEach(id => NUM[id] = k++));
+
+/* ---------------- hotspots (CSS2D) ---------------- */
+const hotspotEls = {};
+for (const id in comps) {
+  if (!INFO[id] || id === 'parede') continue;
+  const el = document.createElement('div'); el.className = 'hotspot';
+  el.innerHTML = `<span class="dot">${NUM[id]}</span><span class="lbl">${INFO[id].n}</span>`;
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); select(id); });
+  const o = new CSS2DObject(el); o.position.set(...comps[id].labelAt); comps[id].group.add(o);
+  hotspotEls[id] = { el, obj: o };
+}
+
+/* ---------------- painéis ---------------- */
+const listEl = document.getElementById('list');
+listEl.innerHTML = ORDER.map(([g, ids]) => `<div class="grp">${g}</div>` + ids.map(id => `<div class="item" data-id="${id}"><span class="num">${NUM[id]}</span>${INFO[id].n}</div>`).join('')).join('');
+listEl.querySelectorAll('.item').forEach(e => e.onclick = () => select(e.dataset.id));
+const legEl = document.getElementById('legend');
+legEl.innerHTML = Object.entries(NETS).map(([k, v]) => `<div class="row" data-net="${k}"><span class="sw" style="background:${v.c}"></span>${v.n}</div>`).join('');
+legEl.querySelectorAll('.row').forEach(r => r.onclick = () => selectNet(r.dataset.net));
+
+const detail = document.getElementById('detail');
+function overview() {
+  detail.innerHTML = `
+  <span class="badge">Visão geral</span>
+  <h2>Smart Air Node</h2>
+  <div class="part">Desliga o ar-condicionado quando a sala fica vazia</div>
+  <p>Dispositivo a bateria, fixado na parede com fita VHB ou bucha. Um <b>PIR</b> acorda o ESP32-C3; o <b>ultrassom</b> e o <b>sensor de luz</b> confirmam se ainda há alguém; o <b>emissor IR</b> manda LIGAR/DESLIGAR para o AC. Sem presença por <b>10 minutos</b>, o AC desliga.</p>
+  <div class="kpi">
+    <div><b>≈ R$ 175</b><span>material do protótipo</span></div>
+    <div><b>≈ R$ 125</b><span>produção (1000 un.)</span></div>
+    <div><b>14–21 meses</b><span>autonomia estimada (18650)</span></div>
+    <div><b>120×80×42 mm</b><span>~180 g</span></div>
+  </div>
+  <h4>Como usar esta demonstração</h4>
+  <p>• Clique em uma peça, número ou item da lista para ver função, especificação, ligações (pinos), consumo e custo.<br>
+  • Clique em um fio ou na legenda para ver o sinal.<br>
+  • Use <b>Explodir</b> para separar as camadas e <b>Carcaça</b> para o modo raio-X.<br>
+  • <b>Na parede</b> mostra o dispositivo instalado.</p>
+  <h4>Fluxo de energia</h4>
+  <p>USB-C → carregador → 18650 → LDO 3,3 V → ESP32-C3 + PIR (sempre ligados). Os demais sensores ficam desligados pelo P-MOSFET até serem necessários.</p>`;
+}
+function connRow([pin, to, net]) {
+  const sw = net && NETS[net] ? `<span class="sw" style="background:${NETS[net].c}"></span>` : '';
+  return `<tr><td>${sw}<b>${pin}</b></td><td>${to}</td></tr>`;
+}
+function showInfo(id) {
+  const i = INFO[id]; if (!i) return overview();
+  detail.innerHTML = `
+    <span class="badge">${i.cat}</span><span class="badge" style="background:#24352f">#${NUM[id] || '–'}</span>
+    <h2>${i.n}</h2><div class="part">${i.part}</div>
+    <p>${i.d}</p>
+    ${i.specs.length ? `<h4>Especificação</h4><table>${i.specs.map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join('')}</table>` : ''}
+    ${i.pins.length ? `<h4>Conexões</h4><table><tr><th>Pino</th><th>Liga em</th></tr>${i.pins.map(connRow).join('')}</table>` : ''}
+    <div class="kpi"><div><b>${i.cost}</b><span>custo</span></div><div><b>${i.pow}</b><span>consumo</span></div></div>
+    ${i.note ? `<div class="note">${i.note}</div>` : ''}
+    <p style="margin-top:14px"><button id="back">← Visão geral</button></p>`;
+  document.getElementById('back').onclick = () => select(null);
+}
+function showNet(net) {
+  const n = NETS[net]; const ws = WIRES.filter(w => w[4] === net);
+  detail.innerHTML = `<span class="badge">Conexão</span>
+    <h2><span class="sw" style="background:${n.c};width:14px;height:14px"></span>${n.n}</h2>
+    <p>${n.d}</p>
+    <h4>Trechos</h4><table><tr><th>De</th><th>Para</th></tr>${ws.map(w => `<tr><td>${INFO[w[0]].n} · ${w[1]}</td><td>${INFO[w[2]].n} · ${w[3]}</td></tr>`).join('')}</table>
+    <p style="margin-top:14px"><button id="back">← Visão geral</button></p>`;
+  document.getElementById('back').onclick = () => select(null);
+}
+
+/* ---------------- seleção / destaque ---------------- */
+let selected = null, selectedNet = null, hovered = null;
+function setEmissive(id, color, intensity) {
+  if (!comps[id]) return;
+  comps[id].group.traverse(o => {
+    if (o.isMesh && o.material && o.material.emissive) {
+      if (o.userData.e0 === undefined) { o.userData.e0 = o.material.emissive.getHex(); o.userData.ei0 = o.material.emissiveIntensity; }
+      if (color === null) { o.material.emissive.setHex(o.userData.e0); o.material.emissiveIntensity = o.userData.ei0; }
+      else { o.material.emissive.setHex(color); o.material.emissiveIntensity = intensity; }
+    }
+  });
+}
+function refreshHighlight() {
+  for (const id in comps) setEmissive(id, null);
+  if (hovered && hovered !== selected) setEmissive(hovered, 0x3fae6f, 0.25);
+  if (selected) setEmissive(selected, 0x2b7fff, 0.55);
+  wireMeshes.forEach(m => {
+    const on = !selectedNet || m.userData.net === selectedNet || (selected && (m.userData.wire[0] === selected || m.userData.wire[2] === selected));
+    m.material.opacity = (selectedNet || selected) && !on ? 0.12 : 1; m.material.transparent = true;
+    m.material.emissiveIntensity = on && (selectedNet || selected) ? 0.6 : 0.15;
+  });
+  listEl.querySelectorAll('.item').forEach(e => e.classList.toggle('sel', e.dataset.id === selected));
+  for (const id in hotspotEls) hotspotEls[id].el.classList.toggle('sel', id === selected);
+}
+function select(id) {
+  selected = id; selectedNet = null;
+  if (id) showInfo(id); else overview();
+  if (id && (id === 'bateria' || id === 'carregador' || id === 'energia' || id === 'pcb') && explodeTarget < 0.5) setExplode(0.6);
+  refreshHighlight();
+}
+function selectNet(net) { selected = null; selectedNet = net; showNet(net); if (explodeTarget < 0.5) setExplode(0.6); refreshHighlight(); }
+
+/* ---------------- interação ---------------- */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(); const tip = document.getElementById('tip');
+let down = null;
+function pick(e) {
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const objs = []; root.traverse(o => { if (o.isMesh && o.visible && o.parent.visible && (o.material.opacity > 0.2 || !o.material.transparent)) objs.push(o); });
+  const hit = ray.intersectObjects(objs, false).find(h => {
+    let p = h.object; while (p) { if (!p.visible) return false; p = p.parent; } return true;
+  });
+  return hit ? hit.object : null;
+}
+renderer.domElement.addEventListener('pointerdown', e => down = [e.clientX, e.clientY]);
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+  const o = pick(e);
+  if (!o) return select(null);
+  if (o.userData.net) return selectNet(o.userData.net);
+  if (o.userData.compId && o.userData.compId !== 'parede') select(o.userData.compId);
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  const o = pick(e);
+  const id = o ? (o.userData.net ? null : o.userData.compId) : null;
+  const label = o ? (o.userData.net ? NETS[o.userData.net].n : (INFO[id] ? INFO[id].n : '')) : '';
+  renderer.domElement.style.cursor = label ? 'pointer' : 'default';
+  tip.style.display = label ? 'block' : 'none';
+  if (label) { tip.textContent = label; tip.style.left = e.clientX + 14 + 'px'; tip.style.top = e.clientY + 12 + 'px'; }
+  if (id !== hovered) { hovered = id === 'parede' ? null : id; refreshHighlight(); }
+});
+
+/* ---------------- controles ---------------- */
+const explodeEl = document.getElementById('explode');
+let explode = 0, explodeTarget = 0;
+function setExplode(v) { explodeTarget = v; explodeEl.value = v; }
+explodeEl.oninput = () => explodeTarget = +explodeEl.value;
+
+let shellMode = 0; // 0 opaca, 1 raio-x, 2 oculta
+const bShell = document.getElementById('bShell');
+bShell.onclick = () => {
+  shellMode = (shellMode + 1) % 3;
+  bShell.textContent = 'Carcaça: ' + ['opaca', 'raio-X', 'oculta'][shellMode];
+  shellMats.forEach(m => { m.opacity = shellMode === 1 ? 0.16 : 1; m.depthWrite = shellMode !== 1; });
+  applyCase();
+};
+let caseMode = new URLSearchParams(location.search).get('caixa') === '3d' ? 'print' : 'prod';
+function applyCase() {
+  const prod = caseMode === 'prod', show = shellMode !== 2;
+  const vis = { frontal: prod && show, traseira: prod && show, caixa_tampa: !prod && show, caixa_base: !prod && show };
+  for (const id in vis) {
+    comps[id].group.visible = vis[id];
+    hotspotEls[id].el.style.display = vis[id] ? '' : 'none';
+    const li = listEl.querySelector('[data-id="' + id + '"]');
+    if (li) li.style.display = (prod === (id === 'frontal' || id === 'traseira')) ? '' : 'none';
+  }
+  comps.suporte.group.traverse(o => { if (o.isMesh && o.material.color && !o.material.transparent) o.material.color.setHex(prod ? 0xf4f6f5 : 0x232326); });
+  document.getElementById('bCaseProd').classList.toggle('on', prod);
+  document.getElementById('bCasePrint').classList.toggle('on', !prod);
+  document.getElementById('stlLinks').style.display = prod ? 'none' : 'block';
+  if (selected in vis && !vis[selected]) select(prod ? 'frontal' : 'caixa_tampa');
+}
+document.getElementById('bCaseProd').onclick = () => { caseMode = 'prod'; applyCase(); };
+document.getElementById('bCasePrint').onclick = () => { caseMode = 'print'; applyCase(); if (explodeTarget < 0.3) setExplode(0.55); };
+const tog = (btn, fn) => { const b = document.getElementById(btn); b.onclick = () => { b.classList.toggle('on'); fn(b.classList.contains('on')); }; };
+tog('bWires', on => wireGroup.visible = on);
+tog('bLabels', on => Object.values(hotspotEls).forEach(h => h.obj.visible = on));
+tog('bNames', on => document.body.classList.toggle('showNames', on));
+tog('bWall', on => { wallGroup.visible = on; grid.visible = !on; });
+tog('bRotate', on => controls.autoRotate = on);
+controls.autoRotateSpeed = 1.2;
+
+const VIEWS = {
+  front: { p: [0, 1, 30], t: [0, 0, 2], e: 0 },
+  iso: { p: [20, 11, 28], t: [0, 0, 1.5], e: 0.55 },
+  side: { p: [38, 4, 2], t: [0, 0, -1], e: 0.75 },
+  back: { p: [-14, 8, -26], t: [0, 0, -2], e: 0.6 },
+  wall: { p: [16, -6, 34], t: [0, 0, 0], e: 0, wall: true },
+};
+let camAnim = null;
+document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
+  const v = VIEWS[b.dataset.view];
+  camAnim = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...v.p), t1: new THREE.Vector3(...v.t) };
+  setExplode(v.e);
+  const wb = document.getElementById('bWall');
+  if (v.wall && !wallGroup.visible) wb.click();
+  if (!v.wall && wallGroup.visible) wb.click();
+  if (v.wall && shellMode !== 0) { while (shellMode !== 0) bShell.click(); }
+});
+
+/* ---------------- loop ---------------- */
+let lastExplode = -1;
+function applyExplode() {
+  for (const id in comps) {
+    const c = comps[id];
+    c.group.position.copy(c.base).addScaledVector(c.off, explode);
+  }
+  updateWires();
+}
+const clock = new THREE.Clock();
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  explode += (explodeTarget - explode) * Math.min(1, dt * 6);
+  if (Math.abs(explode - lastExplode) > 1e-4) { applyExplode(); lastExplode = explode; }
+  if (camAnim) {
+    camAnim.t = Math.min(1, camAnim.t + dt * 1.4); const s = camAnim.t * camAnim.t * (3 - 2 * camAnim.t);
+    camera.position.lerpVectors(camAnim.p0, camAnim.p1, s); controls.target.lerpVectors(camAnim.t0, camAnim.t1, s);
+    if (camAnim.t >= 1) camAnim = null;
+  }
+  controls.update();
+  renderer.render(scene, camera); labelRenderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight);
+});
+overview(); applyCase(); applyExplode(); loop();
+setTimeout(() => { if (explodeTarget === 0) setExplode(0.55); }, 1200);
+window.__demo = { comps, select, setExplode, setCase: m => { caseMode = m; applyCase(); } };
+</script>
+</body>
+</html>
